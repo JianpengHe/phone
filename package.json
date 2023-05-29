@@ -1,0 +1,23 @@
+{
+  "name": "voice-call",
+  "version": "1.0.0",
+  "description": "C++和WEB版本的语音通话",
+  "main": "testServer.js",
+  "scripts": {
+    "test": "node testServer"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JianpengHe/voice-call.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JianpengHe/voice-call/issues"
+  },
+  "homepage": "https://github.com/JianpengHe/voice-call#readme",
+  "devDependencies": {
+    "prettier": "^2.5.1"
+  }
+}

@@ -1,0 +1,6 @@
+/node_modules
+*.temp
+*.flac
+*.wav
+*.pcm
+*.xmp

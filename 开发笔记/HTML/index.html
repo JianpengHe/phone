@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="ws"></div>
+    <div id="ys"></div>
+    <div id="ysl"></div>
+    <button>点击开始</button>
+    <div id="script"></div>
+    <script>
+      const url = new URL(location.href);
+      const script = url.searchParams.get("script");
+      script && document.write(`<script src="${script}"></scr` + `ipt>`);
+    </script>
+    <script>
+      const webSocket = new WebSocket(`ws://${location.host}/WebSocket`);
+
+      fetch(location.pathname.substring(0, location.pathname.lastIndexOf("/") + 1))
+        .then(a => a.json())
+        .then(list => {
+          document.getElementById("script").innerHTML =
+            "加载脚本：" +
+            list
+              .filter(name => /\.js$/.test(name))
+              .map(name => {
+                url.searchParams.set("script", name);
+                return `<p><a href="${url}">${name}</a></p>`;
+              })
+              .join("");
+        });
+
+      const audioInput = async onAudioData => {
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(await navigator.mediaDevices.getUserMedia({ audio: true }));
+        const objectUrl = URL.createObjectURL(
+          new Blob(
+            [
+              "(" +
+                String(() => {
+                  registerProcessor(
+                    "audioInput",
+                    class extends AudioWorkletProcessor {
+                      constructor() {
+                        super();
+                      }
+                      process(inputs) {
+                        this.port.postMessage({
+                          input: Int16Array.from(inputs[0][0], s => {
+                            s = Math.max(-1, Math.min(1, s));
+                            return s < 0 ? s * 0x8000 : s * 0x7fff;
+                          }),
+                        });
+                        return true;
+                      }
+                    }
+                  );
+                }) +
+                ")()",
+            ],
+            { type: "application/javascript; charset=utf-8" }
+          )
+        );
+        await audioContext.audioWorklet.addModule(objectUrl);
+        URL.revokeObjectURL(objectUrl);
+        const node = new AudioWorkletNode(audioContext, "audioInput");
+        source.connect(node).connect(audioContext.destination);
+        node.port.onmessage = ({ data }) => onAudioData(data.input);
+      };
+
+      document.getElementsByTagName("button")[0].onclick = function () {
+        if (!script) {
+          alert("请先选择需要加载的脚本");
+          return;
+        }
+
+        const convertInputAudioData = new ConvertInputAudioData(buf => {
+          webSocket.send(buf);
+          /** 统计数据 */
+          setTimeout(() => {
+            if (buf.byteLength > 300) {
+              document.getElementById("ys").innerHTML = -time2 + (time2 = new Date().getTime()) + " ms";
+            }
+            totalSize += buf.byteLength;
+          });
+        });
+        audioInput(a => convertInputAudioData.sendData(a));
+
+        this.style.display = "none";
+        /** 统计数据 */
+        let totalSize = 0;
+        let time = new Date().getTime();
+        let time2 = new Date().getTime();
+        setInterval(() => {
+          const ms = -time + (time = new Date().getTime());
+          document.getElementById("ws").innerHTML = (totalSize * 8) / ms + " kbps";
+          document.getElementById("ysl").innerHTML = (totalSize * 100) / (48 * 2 * ms) + " %";
+          totalSize = 0;
+        }, 1000);
+      };
+    </script>
+  </body>
+</html>
