@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document</title>
+</head>
+
+<body>
+  <script>
+    // const timeout = 60 * 60 * 1000
+    const broadcastChannelMsg = "You Can Stop!"
+    const bc = new BroadcastChannel(location.host);
+    const mediaStreamConstraints = {
+      audio: {
+        sampleRate: 48000,
+        channelCount: 1,
+        autoGainControl: false,
+        noiseSuppression: false,
+        echoCancellation: false,
+      }
+    };
+
+    (async () => {
+      const stream = await navigator.mediaDevices.getUserMedia(mediaStreamConstraints)
+
+      const chunks = [];
+      const now = new Date();
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm; codecs=pcm' });
+      mediaRecorder.onstart = () => {
+        bc.postMessage(broadcastChannelMsg)
+        bc.onmessage = ({ data }) => {
+          if (data === broadcastChannelMsg && mediaRecorder.state === "recording") {
+            // console.log("stop")
+            setTimeout(() => mediaRecorder.stop(), 500);
+          }
+        }
+        // setTimeout(() => {
+
+        // }, timeout);
+      }
+      mediaRecorder.ondataavailable = e => chunks.push(e.data)
+      mediaRecorder.start();
+      await new Promise(r => { mediaRecorder.onstop = r });
+      if (now.getHours() > 22 || now.getHours() < 8) {
+        bc.postMessage(new URLSearchParams(location.search).get("id") || "upload")
+        return
+      }
+      // stream.stop()
+      stream.getTracks().forEach((track) => track.stop());
+      //console.log("stoped")
+      for (let err = 0; err < 1000; err++) {
+        const blob = new Blob(chunks, { type: "audio/webm; codecs=pcm" });
+        try {
+          const res = await (await fetch("/" + now.getTime() + ".webm.deflate", { method: "PUT", headers: { 'Content-Type': 'application/octet-stream', "Transfer-Encoding": "chunked" }, body: await CompressionBlob("deflate", blob) })).json()
+          if (res) {
+            bc.postMessage(new URLSearchParams(location.search).get("id") || "upload")
+            return
+          }
+          await new Promise(r => setTimeout(r, 3000))
+        } catch (e) {
+          console.log(e)
+        }
+      }
+    })();
+    async function CompressionBlob(format, blob) {
+      const compressedReadableStream = blob.stream().pipeThrough(new CompressionStream(format));
+      const chunks = [];
+      const reader = compressedReadableStream.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done)
+          break;
+        chunks.push(value);
+      }
+      return new Blob(chunks, { type: "application/octet-stream" });
+    }
+  </script>
+</body>
+
+</html>
