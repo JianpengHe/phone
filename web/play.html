@@ -7,7 +7,10 @@
     <title>Document</title>
 </head>
 
-<body>点击屏幕开始
+<body>
+
+    <div id="tip">点击屏幕开始</div>
+
     <script>
         window.exports = {}
     </script>
@@ -19,17 +22,16 @@
         ws.protocol = ws.protocol.replace("http", "ws")
         ws.pathname = "/WebSocket"
         ws.search = "?uid=" + uid
-
-
         const webSocket = new WebSocket(ws);
-
-
         window.onclick = function () {
             window.onclick = null;
             window.playFlacAudio = new PlayFlacAudio(new (window.AudioContext || window.webkitAudioContext)());
             webSocket.onmessage = ({ data }) => data.arrayBuffer().then(audioData => playFlacAudio.sendFlacData(audioData));
-            setInterval(() => playFlacAudio.restart(), 60000)
+            //  setInterval(() => playFlacAudio.restart(), 10000)
             window.onclick = () => playFlacAudio.restart()
+            setInterval(() => {
+                document.getElementById("tip").innerHTML = "当前质量：已缓存" + playFlacAudio.playPCMAudio.quality() + "帧等待播放";
+            }, 1000);
 
         }
         //  var out = [];

@@ -18,6 +18,8 @@ const get = () =>
 const myName = path.parse(__filename).name;
 const userWebSocket = new Map<string, WebSocket>();
 const userChat = new Map<WebSocket, WebSocket | null>();
+const fileMap = new Map<WebSocket, fs.WriteStream>();
+
 (async () => {
   https
     .createServer(
@@ -36,24 +38,25 @@ const userChat = new Map<WebSocket, WebSocket | null>();
             res.end("403");
             return;
           }
-          let file;
-          const fileName = new Date().getTime() + ".temp";
+
           const webSocket = new WebSocket(req, res, {})
             .on("subStream", async subStream => {
               // if (!file) {
               //   file = fs.createWriteStream(fileName);
               // }
-              const otherWebSocket = userChat.get(webSocket);
-              if (otherWebSocket) {
-                otherWebSocket.send(subStream);
-              } else {
-                for await (const c of subStream) {
-                }
-                // .pipe(file, { end: false });
+              const body: Buffer[] = [];
+              for await (const chunk of subStream) {
+                body.push(chunk);
               }
+              const buffer = Buffer.concat(body);
+              fileMap.get(webSocket)?.write(buffer);
+              userChat.get(webSocket)?.send(buffer);
             })
             .on("close", () => {
-              file && file.end();
+              setTimeout(() => {
+                fileMap.get(webSocket)?.end();
+                fileMap.delete(webSocket);
+              }, 500);
               const otherWebSocket = userChat.get(webSocket);
               if (otherWebSocket) userChat.set(otherWebSocket, null);
               userChat.delete(webSocket);
@@ -76,7 +79,7 @@ const userChat = new Map<WebSocket, WebSocket | null>();
             }
 
             userWebSocket.set(uid, webSocket);
-
+            fileMap.set(webSocket, fs.createWriteStream(new Date().getTime() + "." + uid + ".temp"));
             for (const [otherWebSocket, u] of userChat) {
               if (!u) {
                 userChat.set(webSocket, otherWebSocket);

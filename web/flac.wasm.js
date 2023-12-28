@@ -174,6 +174,7 @@ class PlayPCMAudio {
         this.sampleRate = sampleRate;
         this.frameCount = sampleRate * durationPerBuffer;
     }
+    sourceStartTime = performance.now();
     addSource() {
         if (this.state === 2)
             return;
@@ -187,14 +188,21 @@ class PlayPCMAudio {
             this.sources.shift();
             if (!this.sources[0])
                 this.addSource();
+            this.sourceStartTime = performance.now();
             this.sources[0]?.source?.start();
         };
         this.sources.push({ buffer, source });
     }
+    quality() {
+        return this.curSample - (this.nowPlayedSample + Math.floor(performance.now() - this.sourceStartTime) * 48);
+    }
     sendData(data) {
         if (!this.state) {
             this.state = 1;
-            setTimeout(() => this.sources[0].source.start(), 80);
+            setTimeout(() => {
+                this.sourceStartTime = performance.now();
+                this.sources[0].source.start();
+            }, 80);
         }
         if (this.state === 2)
             return;
@@ -230,7 +238,12 @@ class PlayFlacAudio {
     convertOutputAudioData = new ConvertOutputAudioData(([data]) => {
         this.playPCMAudio.sendData(Float32Array.from(new Int16Array(data.buffer), s => (s < 0 ? s / 0x8000 : s / 0x7fff)));
     });
+    lastQuality = 0;
     sendFlacData(data) {
+        const nowQuality = this.playPCMAudio.quality();
+        if (this.lastQuality < 0 && nowQuality < 0)
+            this.restart();
+        this.lastQuality = nowQuality;
         this.convertOutputAudioData.sendData(new Uint8Array(data));
     }
     restart() {
