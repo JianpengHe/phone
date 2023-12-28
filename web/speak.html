@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document</title>
+</head>
+
+<body style="display: flex;justify-content: center;align-items: center;height: 100vh;width: 100vw;">
+  <div>
+    <div id="ws"></div>
+    <div id="ys"></div>
+    <div id="ysl"></div>
+    <button style="margin-bottom: 20px;font-size: 30px;">点击开始</button>
+    <div id="script"></div>
+  </div>
+  <script>
+    window.exports = {}
+  </script>
+  <script src="flac.wasm.js"></script>
+  <script>
+    const uid = Math.random().toString(16).substr(-6)
+    const mediaStreamConstraints = {
+      audio: {
+        sampleRate: 48000,
+        autoGainControl: false,
+        noiseSuppression: false,
+        echoCancellation: false,
+      }
+    }
+
+    const ws = new URL(location.href)
+    ws.protocol = ws.protocol.replace("http", "ws")
+    ws.pathname = "/WebSocket"
+    ws.search = "?uid=" + uid
+    const bufs = []
+    let webSocket
+    const tryToSend = () => {
+      let buf
+      while (webSocket?.readyState === 1 && (buf = bufs.shift())) {
+        webSocket.send(buf)
+      }
+    }
+    let reConTimer = 0
+    const reCon = () => {
+      if (reConTimer || webSocket?.readyState === 1) return
+      if (webSocket?.readyState === 0) {
+        reConTimer = setTimeout(() => {
+          reConTimer && clearTimeout(reConTimer)
+          reConTimer = 0;
+          webSocket?.close();
+          reCon()
+        }, 3000)
+        return
+      }
+      reConTimer && clearTimeout(reConTimer)
+      reConTimer = 0
+      console.log("连接")
+      webSocket?.close()
+      webSocket = new WebSocket(ws);
+      webSocket.onerror = webSocket.onclose = (e) => {
+        console.log("重连", e)
+        setTimeout(() => reCon(), 500)
+      }
+      webSocket.onopen = tryToSend
+    }
+
+
+    document.getElementsByTagName("button")[0].onclick = async function () {
+      (await navigator.mediaDevices.getUserMedia(mediaStreamConstraints)).getTracks().forEach((track) => track.stop());
+      const allDevices = (await navigator.mediaDevices.enumerateDevices()).filter(({ kind, deviceId }) => kind === "audioinput")
+
+      for (const keyword of ["usb", "wire", "speaker"]) {
+        const { deviceId, label } = allDevices.find(({ label }) => label.toLowerCase().includes(keyword)) || {}
+        if (deviceId) {
+          document.getElementById("script").innerHTML += "<p>优先选择：" + label + "</p>";
+          mediaStreamConstraints.audio.deviceId = deviceId
+          break;
+        }
+      }
+
+
+      this.style.display = "none"
+      reCon();
+      let totalSize = 0;
+      let time = new Date().getTime();
+      let time2 = new Date().getTime();
+      setInterval(() => {
+        const ms = -time + (time = new Date().getTime());
+        document.getElementById("ws").innerHTML = ((totalSize * 8) / ms).toFixed(2) + " kbps";
+        document.getElementById("ysl").innerHTML = ((totalSize * 100) / (48 * 2 * ms)).toFixed(2) + " %";
+        totalSize = 0;
+      }, 1000);
+
+
+      window.playFlacAudio = new PlayFlacAudio(new (window.AudioContext || window.webkitAudioContext)());
+      webSocket.onmessage = ({ data }) => data.arrayBuffer().then(audioData => playFlacAudio.sendFlacData(audioData));
+      setInterval(() => playFlacAudio.restart(), 10000)
+
+
+      new GetUserMediaAudioToFlac(await navigator.mediaDevices.getUserMedia(mediaStreamConstraints)).onFlacData((buf, currentFrame) => {
+        //  console.log(currentFrame)
+        bufs.push(buf)
+        tryToSend()
+        if (buf.byteLength > 300) {
+          document.getElementById("ys").innerHTML = -time2 + (time2 = new Date().getTime()) + " ms";
+        }
+        totalSize += buf.byteLength;
+      })
+
+      allDevices.forEach(function (device) {
+        //audioinput   videoinput（视频）  audiooutput(音频)
+        document.getElementById("script").innerHTML += "<p>" + device.label + "</p>";
+      })
+
+    };
+
+
+
+  </script>
+</body>
+
+</html>

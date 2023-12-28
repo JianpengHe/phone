@@ -1,6 +1,6 @@
 {
   // 指定需要编译文件 否则默认当前目录下除了exclude之外的所有.ts, .d.ts,.tsx 文件
-  //"include": ["./"],
+ //"include": ["*.ts"],
   // 不编译某些文件
   "exclude": ["*.js", "*.d.ts", "node_modules"],
   "compilerOptions": {

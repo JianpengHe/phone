@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>点击屏幕开始
+    <script>
+        window.exports = {}
+    </script>
+    <script src="flac.wasm.js"></script>
+    <script>
+        const uid = Math.random().toString(16).substr(-6)
+
+        const ws = new URL(location.href)
+        ws.protocol = ws.protocol.replace("http", "ws")
+        ws.pathname = "/WebSocket"
+        ws.search = "?uid=" + uid
+
+
+        const webSocket = new WebSocket(ws);
+
+
+        window.onclick = function () {
+            window.onclick = null;
+            window.playFlacAudio = new PlayFlacAudio(new (window.AudioContext || window.webkitAudioContext)());
+            webSocket.onmessage = ({ data }) => data.arrayBuffer().then(audioData => playFlacAudio.sendFlacData(audioData));
+            setInterval(() => playFlacAudio.restart(), 60000)
+            window.onclick = () => playFlacAudio.restart()
+
+        }
+        //  var out = [];
+
+    </script>
+</body>
+
+</html>

@@ -18,6 +18,8 @@
   },
   "homepage": "https://github.com/JianpengHe/voice-call#readme",
   "devDependencies": {
-    "prettier": "^2.5.1"
+    "@types/node": "^20.10.5",
+    "prettier": "^2.5.1",
+    "typescript": "^5.3.3"
   }
 }

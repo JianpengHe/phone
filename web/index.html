@@ -17,7 +17,9 @@
     <button style="margin-bottom: 20px;font-size: 30px;">点击开始脚本</button>
     <div id="script"></div>
   </div>
-
+  <script>
+    window.exports = {}
+  </script>
   <script src="flac.wasm.js"></script>
   <!-- <script>
     const url = new URL(location.href);
@@ -25,186 +27,7 @@
     script && document.write(`<script src="${script}"></scr` + `ipt>`);
   </script> -->
   <script>
-    const mediaStreamConstraints = {
-      audio: {
-        sampleRate: 48000,
-
-        autoGainControl: false,
-        noiseSuppression: false,
-        echoCancellation: false,
-      }
-    }
     const broadcastChannelMsg = "You Can Stop!"
-    // fetch(location.pathname.substring(0, location.pathname.lastIndexOf("/") + 1))
-    //   .then(a => a.json())
-    //   .then(list => {
-    //     document.getElementById("script").innerHTML =
-    //       "加载脚本：" +
-    //       list
-    //         .filter(name => /\.js$/.test(name))
-    //         .map(name => {
-    //           url.searchParams.set("script", name);
-    //           return `<p><a href="${url}">${name}</a></p>`;
-    //         })
-    //         .join("");
-    //   });
-
-
-    const ws = new URL(location.href)
-    ws.protocol = ws.protocol.replace("http", "ws")
-    ws.pathname = "/WebSocket"
-    ws.search = ""
-
-
-    // const webSocket = new WebSocket(ws);
-    // webSocket.onerror = webSocket.onclose = (e) => {
-    //   console.log("重连", e)
-    //   // setTimeout(() => reCon(), 500)
-    // }
-
-
-
-
-
-
-
-
-    const bufs = []
-    let webSocket
-    const tryToSend = () => {
-      let buf
-      while (webSocket?.readyState === 1 && (buf = bufs.shift())) {
-        webSocket.send(buf)
-      }
-    }
-    let reConTimer = 0
-    const reCon = () => {
-      if (reConTimer || webSocket?.readyState === 1) return
-      if (webSocket?.readyState === 0) {
-        reConTimer = setTimeout(() => {
-          reConTimer && clearTimeout(reConTimer)
-          reConTimer = 0;
-          webSocket?.close();
-          reCon()
-        }, 3000)
-        return
-      }
-      reConTimer && clearTimeout(reConTimer)
-      reConTimer = 0
-      console.log("连接")
-      webSocket?.close()
-      webSocket = new WebSocket(ws);
-      webSocket.onerror = webSocket.onclose = (e) => {
-        console.log("重连", e)
-        setTimeout(() => reCon(), 500)
-      }
-      webSocket.onopen = tryToSend
-    }
-
-    const audioInput = async onAudioData => {
-      const audioContext = new AudioContext();
-      const source = audioContext.createMediaStreamSource(await navigator.mediaDevices.getUserMedia(mediaStreamConstraints));
-      const objectUrl = URL.createObjectURL(
-        new Blob(
-          [
-            "(" +
-            String(() => {
-              registerProcessor(
-                "audioInput",
-                class extends AudioWorkletProcessor {
-                  constructor() {
-                    super();
-                  }
-                  process(inputs) {
-                    this.port.postMessage({
-                      input: Int16Array.from(inputs[0][0], s => {
-                        s = Math.max(-1, Math.min(1, s));
-                        return s < 0 ? s * 0x8000 : s * 0x7fff;
-                      }),
-                    });
-                    return true;
-                  }
-                }
-              );
-            }) +
-            ")()",
-          ],
-          { type: "application/javascript; charset=utf-8" }
-        )
-      );
-      await audioContext.audioWorklet.addModule(objectUrl);
-      URL.revokeObjectURL(objectUrl);
-      const node = new AudioWorkletNode(audioContext, "audioInput");
-      source.connect(node).connect(audioContext.destination);
-      node.port.onmessage = ({ data }) => onAudioData(data.input);
-    };
-    const t = new Date()
-    t.setHours(0);
-    t.setDate(t.getDate() + 1)
-    setTimeout(() => {
-      location.reload()
-    }, t.getTime() - new Date().getTime());
-    document.getElementsByTagName("button")[0].onclick = function () {
-
-      // if (!String(this.innerHTML).includes("开始")) {
-
-      //   this.innerHTML = "上传中……"
-      //   this.disabled = true
-      //   bc.postMessage(broadcastChannelMsg)
-      //   bc.onmessage = ({ data }) => {
-      //     if (/^id0\./.test(String(data))) {
-      //       setTimeout(() => {
-      //         this.innerHTML = "重置脚本"
-      //         this.disabled = false
-      //       }, 10000);
-      //     }
-      //   };
-      //   document.getElementById("ws").style.display = "none"
-      //   document.getElementById("ysl").style.display = "none"
-      //   document.getElementById("ys").style.display = "none"
-      //   this.onclick = function () {
-      //     location.reload()
-      //   }
-      //   return
-      // }
-
-      // this.innerHTML = "停止脚本"
-      this.style.display = "none"
-      reCon();
-      if (!script) {
-        alert("请先选择需要加载的脚本");
-        return;
-      }
-
-      const convertInputAudioData = new ConvertInputAudioData(buf => {
-        if (new Date().getHours() < 8) return
-        bufs.push(buf)
-        tryToSend()
-        //  webSocket.send(buf)
-        /** 统计数据 */
-        setTimeout(() => {
-          if (buf.byteLength > 300) {
-            document.getElementById("ys").innerHTML = -time2 + (time2 = new Date().getTime()) + " ms";
-          }
-          totalSize += buf.byteLength;
-        });
-      });
-      audioInput(a => convertInputAudioData.sendData(a));
-
-
-      this.style.innerHTML = "none";
-      /** 统计数据 */
-      let totalSize = 0;
-      let time = new Date().getTime();
-      let time2 = new Date().getTime();
-      setInterval(() => {
-        const ms = -time + (time = new Date().getTime());
-        document.getElementById("ws").innerHTML = ((totalSize * 8) / ms).toFixed(2) + " kbps";
-        document.getElementById("ysl").innerHTML = ((totalSize * 100) / (48 * 2 * ms)).toFixed(2) + " %";
-        totalSize = 0;
-      }, 1000);
-    };
-
     const bc = new BroadcastChannel(location.host);
     bc.onmessage = ({ data }) => {
       if (/^id0\./.test(String(data))) {
@@ -224,8 +47,85 @@
         go();
       }, 5 * 60 * 1000);
     }
-    go()
+    go();
 
+    const uid = Math.random().toString(16).substr(-6)
+    document.getElementsByTagName("button")[0].onclick = async function () {
+
+      const mediaStreamConstraints = {
+        audio: {
+          sampleRate: 48000,
+          autoGainControl: false,
+          noiseSuppression: false,
+          echoCancellation: false,
+        }
+      }
+
+      const ws = new URL(location.href)
+      ws.protocol = ws.protocol.replace("http", "ws")
+      ws.pathname = "/WebSocket"
+      ws.search = "?uid=" + uid
+      const bufs = []
+      let webSocket
+      const tryToSend = () => {
+        let buf
+        while (webSocket?.readyState === 1 && (buf = bufs.shift())) {
+          webSocket.send(buf)
+        }
+      }
+      let reConTimer = 0
+      const reCon = () => {
+        //if (new Date().getHours() < 8) return
+        if (reConTimer || webSocket?.readyState === 1) return
+        if (webSocket?.readyState === 0) {
+          reConTimer = setTimeout(() => {
+            reConTimer && clearTimeout(reConTimer)
+            reConTimer = 0;
+            webSocket?.close();
+            reCon()
+          }, 3000)
+          return
+        }
+        reConTimer && clearTimeout(reConTimer)
+        reConTimer = 0
+        console.log("连接")
+        webSocket?.close()
+        webSocket = new WebSocket(ws);
+        webSocket.onerror = webSocket.onclose = (e) => {
+          console.log("重连", e)
+          setTimeout(() => reCon(), 500)
+        }
+        webSocket.onopen = tryToSend
+      }
+
+      this.style.display = "none"
+      reCon();
+      let totalSize = 0;
+      let time = new Date().getTime();
+      let time2 = new Date().getTime();
+      setInterval(() => {
+        const ms = -time + (time = new Date().getTime());
+        document.getElementById("ws").innerHTML = ((totalSize * 8) / ms).toFixed(2) + " kbps";
+        document.getElementById("ysl").innerHTML = ((totalSize * 100) / (48 * 2 * ms)).toFixed(2) + " %";
+        totalSize = 0;
+      }, 1000);
+
+
+      // window.playFlacAudio = new PlayFlacAudio(new (window.AudioContext || window.webkitAudioContext)());
+      // webSocket.onmessage = ({ data }) => data.arrayBuffer().then(audioData => playFlacAudio.sendFlacData(audioData));
+      // setInterval(() => playFlacAudio.restart(), 10000)
+
+
+      new GetUserMediaAudioToFlac(await navigator.mediaDevices.getUserMedia(mediaStreamConstraints)).onFlacData((buf, currentFrame) => {
+        //  console.log(currentFrame)
+        bufs.push(buf)
+        tryToSend()
+        if (buf.byteLength > 300) {
+          document.getElementById("ys").innerHTML = -time2 + (time2 = new Date().getTime()) + " ms";
+        }
+        totalSize += buf.byteLength;
+      })
+    };
   </script>
 </body>
 

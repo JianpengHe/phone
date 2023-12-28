@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<script>
+    window.exports = {}
+    window.require = (path) => {
+        document.write(`<script src="${path}"></scr` + `ipt>`);
+    }
+
+</script>
+<script src="flac.wasm.js"></script>
+<script>
+    var decData = []
+    fetch("1.flac").then(a => a.arrayBuffer()).then(async a => {
+        a = new Uint8Array(a);
+        window.convertOutputAudioData = new ConvertOutputAudioData((buffer, _frameHdr) => {
+            console.log('decode write callback', buffer[0].byteLength)
+            decData.push(buffer[0]);
+        })
+
+        while (a.length) {
+            console.log("包")
+            // console.log(a)
+            convertOutputAudioData.sendData(a.subarray(0, 2048));
+            a = a.subarray(2048)
+            // console.log(a)
+            await sleep(1000)
+        }
+    })
+</script>
+<script>
+    var flac_decoder,
+        VERIFY = true,
+        flac_ok = 1;
+    (() => {
+        return
+
+        // analyse_frames = false,
+        // analyse_residuals = false,
+
+        var binData
+
+        var currentDataOffset = 0;
+        var size = 0
+        //  var decData = []
+        // VERIFY = isVerify || false;
+
+        /** @memberOf decode */
+
+        let i = 0
+        function read_callback_fn(bufferSize) {
+            // if (i++ % 1000 != 0) return null
+            console.log('  decode read callback, buffer bytes max=', bufferSize);
+            bufferSize = 1024
+            var end = currentDataOffset === size ? -1 : Math.min(currentDataOffset + bufferSize, size);
+
+            var _buffer;
+            var numberOfReadBytes;
+            if (end !== -1) {
+
+                _buffer = binData.subarray(currentDataOffset, end);
+                numberOfReadBytes = end - currentDataOffset;
+
+                currentDataOffset = end;
+            } else {
+                numberOfReadBytes = 0;
+            }
+            // await new Promise(r => setTimeout(r, 1000))
+
+            return { buffer: _buffer, readDataLength: numberOfReadBytes, error: false };
+        }
+
+        /** @memberOf decode */
+        function write_callback_fn(buffer, _frameHdr) {
+            // buffer is the decoded audio data, Uint8Array
+            // console.log('decode write callback', buffer);
+            // console.log('  decode write frame metadata: ', _frameHdr);
+            console.log(buffer[0].byteLength)
+            decData.push(buffer[0]);
+        }
+
+        /** @memberOf decode */
+        function metadata_callback_fn(data, dataBlock) {
+            if (data) {
+                console.info('meta data: ', data);
+                meta_data = data;
+
+            } else {
+                console.info('  meta data block: ', dataBlock);
+
+            }
+        }
+
+        /** @memberOf decode */
+        function error_callback_fn(err, errMsg) {
+            console.error('decode error callback', err, errMsg);
+        }
+
+        // check: is file a compatible flac-file?
+        // if (flac_file_processing_check_flac_format(binData, isOgg) == false) {
+        //     var container = isOgg ? 'OGG/' : '';
+        //     throw new Error(JSON.stringify({ error: 'Wrong ' + container + 'FLAC file format', status: 1 }));
+        // }
+
+        // init decoder
+        flac_decoder = Flac.create_libflac_decoder(false);
+
+        if (flac_decoder != 0) {
+            // if (isAllMetadata) {
+            //     Flac.FLAC__stream_decoder_set_metadata_respond_all(flac_decoder);
+            //     // // only enable picture metadata:
+            //     // Flac.FLAC__stream_decoder_set_metadata_respond(flac_decoder, 6);
+            // }
+            var init_status = Flac.init_decoder_stream(flac_decoder, read_callback_fn, write_callback_fn, error_callback_fn, metadata_callback_fn, false);
+            // Flac.setOptions(flac_decoder, { analyseSubframes: analyse_frames, analyseResiduals: analyse_residuals, enableRawStreamMetadata: enable_raw_metadata });
+            flac_ok &= init_status == 0;
+            console.log("flac init     : " + flac_ok);//DEBUG
+        } else {
+            var msg = 'Error initializing the decoder.';
+            console.error(msg);
+            throw new Error(JSON.stringify({ error: msg, status: 1 }));
+        }
+
+        fetch("1.flac").then(a => a.arrayBuffer()).then(a => {
+            binData = new Uint8Array(a)
+            size = binData.buffer.byteLength;
+            // Flac.FLAC__stream_decoder_process_single(flac_decoder);
+            //  state = Flac.FLAC__stream_decoder_get_state(flac_decoder);
+            //  console.log("stare", state)
+        })
+
+        // decode flac data
+
+        // var isDecodePartial = true;
+        // var flac_return = 1;
+        // if (!isDecodePartial) {
+        //     //variant 1: decode stream at once / completely
+
+        //     flac_return &= Flac.FLAC__stream_decoder_process_until_end_of_stream(flac_decoder);
+        //     if (flac_return != true) {
+        //         console.error('encountered error during decoding data');
+        //     }
+
+        // } else {
+        //     //variant 2: decode data chunks
+
+        //     //request to decode data chunks until end-of-stream is reached:
+        //     var state = 0;
+        //     while (state <= 3 && flac_return != false) {
+
+        //         flac_return &= Flac.FLAC__stream_decoder_process_single(flac_decoder);
+        //         //need to check decoder state: state == 4: end of stream ( > 4: error)
+        //         state = Flac.FLAC__stream_decoder_get_state(flac_decoder);
+        //     }
+
+        //     flac_ok &= flac_return != false
+        // }
+
+        // // finish Decoding
+        // flac_ok &= Flac.FLAC__stream_decoder_finish(flac_decoder);
+        // if (flac_ok != 1) {
+        //     //TODO get/return description for state
+        //     flac_ok = Flac.FLAC__stream_decoder_get_state(flac_decoder);
+        // }
+
+        // Flac.FLAC__stream_decoder_delete(flac_decoder);
+
+        // if (all_meta_data) {
+        //     meta_data.extractedMetadata = all_meta_data;
+        // }
+
+    })()
+</script>
+
+<body>
+
+</body>
+
+</html>
