@@ -4,7 +4,6 @@
 *.wav
 *.pcm
 *.xmp
-*.d.ts
 *.map
 *.symbols
 *.tsbuildinfo
