@@ -250,6 +250,7 @@ export class GetUserMediaAudioToFlac extends GetUserMediaAudio {
 // );
 
 export class PlayPCMAudio {
+  public delay = 150;
   public readonly audioContext: AudioContext;
   public readonly durationPerBuffer: number;
   public readonly sampleRate: number;
@@ -295,7 +296,7 @@ export class PlayPCMAudio {
       setTimeout(() => {
         this.sourceStartTime = performance.now();
         this.sources[0].source.start();
-      }, 80);
+      }, this.delay);
     }
     if (this.state === 2) return;
     for (const s of data) {
@@ -333,12 +334,26 @@ export class PlayFlacAudio {
   public readonly convertOutputAudioData = new ConvertOutputAudioData(([data]) => {
     this.playPCMAudio.sendData(Float32Array.from(new Int16Array(data.buffer), s => (s < 0 ? s / 0x8000 : s / 0x7fff)));
   });
-  public lastQuality = 0;
+  public lastQuality: number[] = [];
+  public lastQualityMaxLen = 6;
   public sendFlacData(data: Uint8Array) {
     const nowQuality = this.playPCMAudio.quality();
-    if (this.lastQuality < 0 && nowQuality < 0) this.restart();
-    // console.log(nowQuality);
-    this.lastQuality = nowQuality;
+    this.lastQuality.unshift(nowQuality);
+    let avgQuality = 0;
+    if (
+      this.lastQuality.length > this.lastQualityMaxLen &&
+      (this.lastQuality.slice(0, this.lastQualityMaxLen / 2).every(n => n < 0) ||
+        (avgQuality = this.lastQuality.reduce((n, b) => n + b) / this.lastQuality.length) > this.sampleRate * 0.8)
+    ) {
+      const delay = this.playPCMAudio.delay;
+      this.restart();
+      this.playPCMAudio.delay = Math.max(delay + (avgQuality ? -50 : 10), 80);
+      console.log("重启", (avgQuality / 48).toFixed(2) + "ms", this.lastQuality, this.playPCMAudio.delay);
+      this.lastQuality.length = 0;
+    } else {
+      this.lastQuality.length = Math.min(this.lastQualityMaxLen, this.lastQuality.length);
+    }
+
     this.convertOutputAudioData.sendData(new Uint8Array(data));
   }
   public restart() {

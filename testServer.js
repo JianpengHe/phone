@@ -74,7 +74,8 @@ const fileMap = new Map();
                     userWebSocket.delete(uid);
                 }
                 userWebSocket.set(uid, webSocket);
-                fileMap.set(webSocket, fs.createWriteStream(new Date().getTime() + "." + uid + ".temp"));
+                !/^test/.test(uid) &&
+                    fileMap.set(webSocket, fs.createWriteStream(new Date().getTime() + "." + uid + ".temp"));
                 for (const [otherWebSocket, u] of userChat) {
                     if (!u) {
                         userChat.set(webSocket, otherWebSocket);

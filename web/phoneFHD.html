@@ -145,19 +145,19 @@
     document.getElementById("phoneCancel").onclick = function () {
         this.style.display = "none";
         document.getElementById("phoneText").innerHTML = "呼叫结束";
-
-        // ws.send(JSON.stringify({ code: 8 }));
+        state = 9
+        phoneTimer && clearInterval(phoneTimer)
     }
 
-
-
-    const uid = Math.random().toString(16).substr(-6)
+    const uid = new URL(location.href).searchParams.get("uid") || Math.random().toString(16).substr(-6)
     const mediaStreamConstraints = {
         audio: {
             sampleRate: 48000,
+            // sampleSize: 16,
             autoGainControl: false,
             noiseSuppression: false,
-            echoCancellation: false,
+            echoCancellation: uid.includes("test"),
+            volume: 1
         }
     }
 
@@ -194,32 +194,39 @@
             console.log("重连", e)
             setTimeout(() => reCon(), 500)
         }
-        webSocket.onopen = tryToSend
+        webSocket.onopen = () => {
+            tryToSend();
+            webSocket.onmessage = onMsg
+        }
     }
-
+    let onMsg = () => { }
 
     const timerDOM = document.getElementById("phoneTimer");
     let time = 0;
+    /** 0刚打开，1Flac加载成功，2已发送第一帧，5点击了发起通话，6正在通话，9点击结束通话 */
+    let state = 0
     let isStart = false;
+    let phoneTimer = 0
+    let isPc = navigator.platform.toLowerCase().includes("win") || navigator.platform.toLowerCase().includes("mac")
     const start = () => {
-        isStart = true;
+        state = 6
         document.getElementById("phoneText").innerHTML = "";
         timerDOM.innerHTML = "00:00";
         phoneTimer = setInterval(function () {
             time++;
-            timerDOM.innerHTML = (time >= 3600 ? ((time / 3600 | 0) + ":") : "") + (((time / 60 | 0) + 100) + ":").substr(1) + ((time % 60 + 100) + "").substr(1);
-            if (time >= 7200) {
-                document.getElementById("phoneCancel").click();
-            }
+            timerDOM.innerHTML = (time >= 3600 ? ((time / 3600 | 0) + ":") : "") + (((time / 60 | 0) % 60 + 100) + ":").substr(1) + ((time % 60 + 100) + "").substr(1);
         }, 1000);
     }
     navigator.mediaDevices.getUserMedia(mediaStreamConstraints).then(async a => {
+        // alert(JSON.stringify(a.getTracks()[0].getSettings()))
         a.getTracks().forEach((track) => track.stop());
         const allDevices = (await navigator.mediaDevices.enumerateDevices()).filter(({ kind, deviceId }) => kind === "audioinput")
+        if (allDevices.find(({ label }) => label.includes("bluetooth"))) alert("请关闭蓝牙开关，暂不支持蓝牙耳机");
 
         for (const keyword of ["usb", "wire", "speaker"]) {
             const { deviceId, label } = allDevices.find(({ label }) => label.toLowerCase().includes(keyword)) || {}
             if (deviceId) {
+                if (label.toLowerCase().includes("speaker")) document.getElementById("phoneTimer").innerHTML = "当前使用的是扬声器，通话质量会非常差，建议使用有线耳机！"
                 document.getElementById("script").innerHTML += "<p>优先选择：" + label + "</p>";
                 mediaStreamConstraints.audio.deviceId = deviceId
                 break;
@@ -230,42 +237,58 @@
             document.getElementById("script").innerHTML += "<p>" + device.label + "</p>";
         })
     })
-
-
-    document.getElementById("phoneCall").onclick = async function () {
-
-
-
-        this.style.display = "none"
-        document.getElementById("phoneCancel").style.display = "";
-        document.getElementById("phoneText").innerHTML = "正在拨号";
-        reCon();
-        let totalSize = 0;
+    Flac.onready = async () => {
         let time = performance.now();
         let time2 = performance.now();
-        window.playFlacAudio = new PlayFlacAudio(new (window.AudioContext || window.webkitAudioContext)());
-        webSocket.onmessage = ({ data }) => {
-            if (!isStart) start()
-            data.arrayBuffer().then(audioData => playFlacAudio.sendFlacData(audioData))
+        onMsg = ({ data }) => {
+            switch (state) {
+                case 6: //(isPc || !document.hidden) && 
+                    data.arrayBuffer().then(audioData => playFlacAudio?.sendFlacData(audioData)); return
+                case 5: start(); return
+            }
         };
-
+        reCon();
+        window.onclick = (e) => {
+            window.playFlacAudio?.restart();
+            wakeLock(e)
+        }
 
         new GetUserMediaAudioToFlac(await navigator.mediaDevices.getUserMedia(mediaStreamConstraints)).onFlacData((buf, currentFrame) => {
             //  console.log(currentFrame)
             bufs.push(buf)
             tryToSend()
-            totalSize += buf.byteLength;
-            if (buf.byteLength > 300) {
-                const ms = -time + (time = performance.now());
-                document.getElementById("script").innerHTML = "<p>" + ((totalSize * 8) / ms).toFixed(2) + " kbps</p>" + "<p>" + ((totalSize * 100) / (48 * 2 * ms)).toFixed(2) + " %</p><p>延迟" + (-time2 + (time2 = performance.now())).toFixed(2) + " ms</p>";
-                totalSize = 0;
+            if (state === 1) {
+                state = 2
+                return
             }
-            //
+
+            if (state === 6 && buf.byteLength > 300) {
+                const totalSize = buf.byteLength;
+                const ms = -time + (time = performance.now());
+                document.getElementById("script").innerHTML = "<p>" + ((totalSize * 8) / ms).toFixed(2) + " kbps</p>" + "<p>" + ((totalSize * 100) / ((mediaStreamConstraints.audio.sampleRate / 1000) * (16 / 8) * ms)).toFixed(2) + " %</p><p>录音延迟" + (-time2 + (time2 = performance.now())).toFixed(2) + " ms</p><p>放音延迟" + (window.playFlacAudio.playPCMAudio.quality() / (mediaStreamConstraints.audio.sampleRate / 1000)).toFixed(1) + "ms</p>";
+            }
         })
-
-
-
+    }
+    document.getElementById("phoneCall").onclick = async function () {
+        state = 5
+        window.playFlacAudio = new PlayFlacAudio();
+        this.style.display = "none"
+        document.getElementById("phoneCancel").style.display = "";
+        document.getElementById("phoneText").innerHTML = "正在拨号";
+        wakeLock()
     };
+
+    const wakeLock = (e) => {
+        if (document.hidden) return
+        if (navigator.wakeLock) {
+            navigator.wakeLock.request("screen")
+            //   alert("支持锁定")
+        } else if (!e) {
+            alert("不支持锁定，请一直保持APP前台")
+        }
+    }
+    setInterval(() => wakeLock(1), 10000)
+    // document.getElementById("phoneCall").click()
 
 </script>
 

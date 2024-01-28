@@ -21,7 +21,7 @@
   </script>
   <script src="flac.wasm.js"></script>
   <script>
-    const uid = Math.random().toString(16).substr(-6)
+    const uid = new URL(location.href).searchParams.get("uid") || Math.random().toString(16).substr(-6)
     const mediaStreamConstraints = {
       audio: {
         sampleRate: 48000,
