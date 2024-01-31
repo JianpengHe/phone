@@ -35,9 +35,7 @@ window.onclick = async function () {
             const height = video.videoHeight;
             const width = video.videoWidth;
             const offscreen = new OffscreenCanvas(width, height);
-            const canvasToJpg = document.createElement("canvas");
-            canvasToJpg.width = width;
-            canvasToJpg.height = height;
+            const canvasToJpg = new OffscreenCanvas(width, height);
             const contextToJpg = canvasToJpg.getContext("2d", { willReadFrequently: true });
             const context = offscreen.getContext("2d", { willReadFrequently: true });
             if (!context || !contextToJpg)
@@ -45,7 +43,6 @@ window.onclick = async function () {
             contextToJpg.fillStyle = "#000";
             contextToJpg.fillRect(0, 0, width, height);
             const lastFam = new Uint8Array(height * width * 3);
-            webSocket.send(new Uint16Array([width, height]));
             let nowTime = performance.now();
             const dataList = [];
             while (videoTrack.readyState === "live") {
@@ -60,7 +57,6 @@ window.onclick = async function () {
                     totalDatas += data;
                 }
                 if (totalDatas > (maxSpeed * speedStatistical) / 1000) {
-                    console.log(totalDatas - maxSpeed, nowTime);
                     continue;
                 }
                 context.drawImage(video, 0, 0, width, height);
@@ -93,7 +89,12 @@ window.onclick = async function () {
                 framesPerSec++;
                 if (needSend) {
                     contextToJpg.putImageData(canvasToJpgImageData, 0, 0);
-                    const webp = await new Promise(r => canvasToJpg.toBlob(a => new Response(a?.stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer().then(r), "image/webp", 1));
+                    const webp = await new Response((await canvasToJpg.convertToBlob({
+                        quality: 1,
+                        type: "image/webp",
+                    }))
+                        .stream()
+                        .pipeThrough(new CompressionStream("gzip"))).arrayBuffer();
                     dataList.unshift([nowTime, webp.byteLength]);
                     webSocket.send(webp);
                 }
@@ -104,29 +105,47 @@ window.onclick = async function () {
         console.error("Error: " + err);
     }
 };
-const canvas = document.createElement("canvas");
-document.body.appendChild(canvas);
-const context = canvas.getContext("2d");
-let myImageData;
-webSocket.onmessage = async ({ data }) => {
+(() => {
+    const canvas = document.createElement("canvas");
+    document.body.appendChild(canvas);
+    const context = canvas.getContext("2d");
     if (!context)
         return;
-    try {
-        const img = new Image();
-        img.src = URL.createObjectURL(await new Response(data.stream().pipeThrough(new DecompressionStream("gzip"))).blob());
-        img.onload = () => {
-            framesPerSec++;
+    const queue = [];
+    const tryTo = () => {
+        let img;
+        while (queue[0]?.dataset?.load && (img = queue.shift())) {
+            const { height, width } = img;
+            console.log(height, width);
+            if (height && canvas.height !== height)
+                canvas.height = height;
+            if (width && canvas.width !== width)
+                canvas.width = width;
             context.drawImage(img, 0, 0);
-            URL.revokeObjectURL(img.src);
-        };
-    }
-    catch (e) {
-        const [width, height] = new Uint16Array(await data.arrayBuffer());
-        canvas.width = width;
-        canvas.height = height;
-        context.fillStyle = "#000";
-        context.fillRect(0, 0, width, height);
-        myImageData = context.getImageData(0, 0, width, height);
-    }
-};
+        }
+    };
+    let myImageData;
+    webSocket.onmessage = async ({ data }) => {
+        try {
+            const img = new Image();
+            queue.push(img);
+            img.src = URL.createObjectURL(await new Response(data.stream().pipeThrough(new DecompressionStream("gzip"))).blob());
+            img.onload = () => {
+                framesPerSec++;
+                URL.revokeObjectURL(img.src);
+                img.dataset.load = "1";
+                tryTo();
+            };
+        }
+        catch (e) {
+            const [width, height] = new Uint16Array(await data.arrayBuffer());
+            canvas.width = width;
+            canvas.height = height;
+            context.fillStyle = "#000";
+            context.fillRect(0, 0, width, height);
+            myImageData = context.getImageData(0, 0, width, height);
+            queue.length = 0;
+        }
+    };
+})();
 //# sourceMappingURL=ScreenShare.js.map
