@@ -5,6 +5,7 @@ import * as child_process from "child_process";
 import * as path from "path";
 import * as os from "os";
 import { WebSocket } from "../tools/dist/node/WebSocket";
+import { MatchPartner } from "../tools/dist/node/MatchPartner";
 const get = () =>
   new Promise<Buffer>(r =>
     https.get("https://tool.hejianpeng.cn/certificate/t.hejianpeng.com", async res => {
@@ -16,8 +17,10 @@ const get = () =>
     })
   );
 const myName = path.parse(__filename).name;
-const userWebSocket = new Map<string, WebSocket>();
-const userChat = new Map<WebSocket, WebSocket | null>();
+// const userWebSocket = new Map<string, WebSocket>();
+// const userChat = new Map<WebSocket, WebSocket | null>();
+const phoneMatchPartner = new MatchPartner<WebSocket>();
+const videoMatchPartner = new MatchPartner<WebSocket>();
 const fileMap = new Map<WebSocket, fs.WriteStream>();
 
 (async () => {
@@ -32,72 +35,63 @@ const fileMap = new Map<WebSocket, fs.WriteStream>();
       (req, res) => {
         if (!req.url) return;
         const url = new URL("http://127.0.0.1" + req.url);
-        if (url.pathname === "/WebSocket") {
-          const uid = url.searchParams.get("uid");
-          if (!uid) {
-            res.end("403");
-            return;
-          }
+        const uid = url.searchParams.get("uid");
+        const isSave = uid && !/^test/.test(uid);
 
+        if (uid && url.pathname === "/WebSocket") {
           const webSocket = new WebSocket(req, res, {})
             .on("subStream", async subStream => {
-              // if (!file) {
-              //   file = fs.createWriteStream(fileName);
-              // }
               const body: Buffer[] = [];
               for await (const chunk of subStream) {
                 body.push(chunk);
               }
               const buffer = Buffer.concat(body);
               fileMap.get(webSocket)?.write(buffer);
-              userChat.get(webSocket)?.send(buffer);
+              phoneMatchPartner.getPartner(webSocket)?.send(buffer);
             })
             .on("close", () => {
               setTimeout(() => {
                 fileMap.get(webSocket)?.end();
                 fileMap.delete(webSocket);
               }, 500);
-              const otherWebSocket = userChat.get(webSocket);
-              if (otherWebSocket) userChat.set(otherWebSocket, null);
-              userChat.delete(webSocket);
-              if (userWebSocket.get(uid) === webSocket) userWebSocket.delete(uid);
-              console.log(new Date().toLocaleString(), uid, "断开连接", "剩余用户", userChat.size, userWebSocket.size);
+              phoneMatchPartner.del(webSocket);
             })
-            .on("error", e => {
-              console.log(e);
-            });
+            .on("error", e => console.log(e));
           if (!webSocket.isWebSocket) {
             res.end("404");
           } else {
-            const oldWebSocket = userWebSocket.get(uid);
-            if (oldWebSocket) {
-              // oldWebSocket.close()
-              const oldOtherWebSocket = userChat.get(oldWebSocket);
-              if (oldOtherWebSocket) userChat.set(oldOtherWebSocket, null);
-              userChat.delete(oldWebSocket);
-              userWebSocket.delete(uid);
-            }
-
-            userWebSocket.set(uid, webSocket);
-            !/^test/.test(uid) &&
-              fileMap.set(webSocket, fs.createWriteStream(new Date().getTime() + "." + uid + ".temp"));
-            for (const [otherWebSocket, u] of userChat) {
-              if (!u) {
-                userChat.set(webSocket, otherWebSocket);
-                userChat.set(otherWebSocket, webSocket);
-                console.log(
-                  new Date().toLocaleString(),
-                  uid,
-                  "匹配成功",
-                  "当前用户",
-                  userChat.size,
-                  userWebSocket.size
-                );
-                return;
+            phoneMatchPartner.add(webSocket);
+            isSave && fileMap.set(webSocket, fs.createWriteStream(new Date().getTime() + "." + uid + ".temp"));
+          }
+          return;
+        } else if (uid && url.pathname === "/WebSocketVideo") {
+          const webSocket = new WebSocket(req, res, {})
+            .on("subStream", async subStream => {
+              const body: Buffer[] = [];
+              for await (const chunk of subStream) {
+                body.push(chunk);
               }
-            }
-            console.log(new Date().toLocaleString(), uid, "待匹配", "当前用户", userChat.size, userWebSocket.size);
-            userChat.set(webSocket, null);
+              const buffer = Buffer.concat(body);
+              fileMap.get(webSocket)?.write(buffer);
+              videoMatchPartner.getPartner(webSocket)?.send(buffer);
+              isSave &&
+                zlib.gunzip(
+                  buffer,
+                  (err, buf) => buf && fs.writeFile(new Date().getTime() + "." + uid + ".webp", buf, () => {})
+                );
+            })
+            .on("close", () => {
+              setTimeout(() => {
+                fileMap.get(webSocket)?.end();
+                fileMap.delete(webSocket);
+              }, 500);
+              videoMatchPartner.del(webSocket);
+            })
+            .on("error", e => console.log(e));
+          if (!webSocket.isWebSocket) {
+            res.end("404");
+          } else {
+            videoMatchPartner.add(webSocket);
           }
           return;
         }
