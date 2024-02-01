@@ -41,7 +41,8 @@ class ToBat {
           if (content) {
             fs.writeFile(
               path.resolve(__dirname, "./dist/服务器.bat"),
-              `/** \n@echo off\ncls\nnode %0\npause\nexit\n**/` + content,
+              `/** \n@echo off\ncls\nnode %0\npause\nexit\n**/` +
+                content.replace(/[^\x00-\xff]/g, str => escape(str).replace(/\%u/g, "\\u")),
               () => {}
             );
           } else {
