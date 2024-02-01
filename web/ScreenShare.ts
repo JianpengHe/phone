@@ -1,3 +1,4 @@
+import { ReliableWebSocket } from "../../code-snippet/browser/ReliableWebSocket";
 /** RGB每个通道的容错率 */
 const ErrorRate = 3;
 /** 最大帧率 */
@@ -19,9 +20,9 @@ const displayMediaOptions = {
 const uid = "test" + Math.random().toString(16).substr(-6);
 const ws = new URL(location.href);
 ws.protocol = ws.protocol.replace("http", "ws");
-ws.pathname = "/WebSocket";
+ws.pathname = "/WebSocketVideo";
 ws.search = "?uid=" + uid;
-const webSocket = new WebSocket(ws);
+const webSocket = new ReliableWebSocket(ws);
 
 const showFps = document.createElement("div");
 let framesPerSec = 0;
@@ -144,7 +145,7 @@ window.onclick = async function () {
     }
   };
   let myImageData: ImageData; // = context.getImageData(left, top, width, height);
-  webSocket.onmessage = async ({ data }: { data: Blob }) => {
+  webSocket.addEventListener("message", async ({ data }: { data: Blob }) => {
     try {
       // nowQueueId++;
       const img = new Image();
@@ -170,7 +171,7 @@ window.onclick = async function () {
       queue.length = 0;
       // canvas.style.transform = `rotate(${screen.width < screen.height && width > height ? 90 : 0}deg)`;
     }
-  };
+  });
 })();
 
 // function stopCapture(evt) {

@@ -1,6 +1,5 @@
 // import * as Flac from "../libflac.js-5.4.0/libflac.js";
 // const sleep = t => new Promise<void>(r => setTimeout(() => r(), t));
-document.write(`<script src="/libflac.js-5.4.0/libflac.wasm.js"></scr` + `ipt>`);
 /// <reference path='../libflac.js-5.4.0/libflac.wasm.d.ts'/>
 export class ConvertInputAudioData {
   private flac_encoder: number;

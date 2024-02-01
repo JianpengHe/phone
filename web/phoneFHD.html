@@ -1,295 +1,141 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-
-<head>
+  <head>
     <meta name="viewport" content="initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
     <meta name="screen-orientation" content="portrait" />
     <meta name="x5-orientation" content="portrait" />
     <meta name="renderer" content="webkit" />
-    <meta charset="utf-8">
-    <title>网络语音通话HD版</title>
+    <meta charset="utf-8" />
+    <title>网络音视频通话FHD</title>
     <style>
-        * {
-            font-family: Arial, Tahoma, Geneva, sans-serif;
-            -webkit-overflow-scrolling: touch
-        }
+      * {
+        font-family: Arial, Tahoma, Geneva, sans-serif;
+        -webkit-overflow-scrolling: touch;
+      }
 
-        #phoneUser {
-            position: absolute;
-            width: 100%;
-            top: 12vh;
-            text-align: center;
-            color: #FAFAFA;
-        }
+      #phoneUser {
+        position: absolute;
+        width: 100%;
+        top: 12vh;
+        text-align: center;
+        color: #fafafa;
+      }
 
-        #phoneUser img {
-            height: 100px;
-            width: 100px;
-            margin-bottom: 20px;
-        }
+      #phoneUser img {
+        height: 100px;
+        width: 100px;
+        margin-bottom: 20px;
+      }
 
-        #phoneUser h1 {
-            line-height: 0;
-            font-size: 25px;
-            font-weight: 200;
-        }
+      #phoneUser h1 {
+        line-height: 0;
+        font-size: 25px;
+        font-weight: 200;
+      }
 
-        #phoneUser h3 {
-            line-height: 30px;
-            font-size: 17px;
-            color: #aaa;
-            font-weight: 100;
-        }
+      #phoneUser h3 {
+        line-height: 30px;
+        font-size: 17px;
+        color: #aaa;
+        font-weight: 100;
+      }
 
-        #phoneTimer {
-            position: fixed;
-            width: 100%;
-            text-align: center;
-            display: block;
-            color: #fff;
-            bottom: 21.18vh;
-            font-size: 18px;
-        }
+      #phoneTimer {
+        position: fixed;
+        width: 100%;
+        text-align: center;
+        display: block;
+        color: #fff;
+        bottom: 21.18vh;
+        font-size: 18px;
+      }
 
-        #phoneButton {
-            position: absolute;
-            width: 100%;
-            bottom: 15vh;
-        }
+      #phoneButton {
+        position: absolute;
+        width: 100%;
+        bottom: 15vh;
+      }
 
-        #phoneButton div {
-            position: absolute;
-            margin-left: -35px;
-            width: 40px;
-            height: 40px;
-            padding: 15px;
-            border-radius: 50%;
-            cursor: pointer;
-        }
+      #phoneButton div {
+        position: absolute;
+        margin-left: -35px;
+        width: 40px;
+        height: 40px;
+        padding: 15px;
+        border-radius: 50%;
+        cursor: pointer;
+      }
 
-        #phoneCancel {
-            left: 50%;
-            background-color: #DC494F;
-        }
+      #phoneCancel {
+        left: 50%;
+        background-color: #dc494f;
+      }
 
-        #phoneCall {
-            left: 50%;
-            background-color: #33CC00;
-        }
+      #phoneCall {
+        left: 50%;
+        background-color: #33cc00;
+      }
 
-        #phoneBackground {
-            position: fixed;
-            z-index: -100;
-            width: 100vmax;
-            height: 100vmax;
-            margin: -50vmax;
-            left: 50%;
-            top: 50%;
-            opacity: 0.618;
-            ;
-        }
+      #phoneBackground {
+        position: fixed;
+        z-index: -100;
+        width: 100vmax;
+        height: 100vmax;
+        margin: -50vmax;
+        left: 50%;
+        top: 50%;
+        opacity: 0.618;
+      }
 
-        #phoneBackground::before {
-            background-image: url('PG.jpg');
-            background-size: 100%;
-            background-repeat: no-repeat;
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            right: 0;
-            filter: blur(10vmin);
-            margin: -10vmin;
-            z-index: -100;
-        }
+      #phoneBackground::before {
+        background-image: url("https://www.hejianpeng.cn/images/profile_img.jpg");
+        background-size: 100%;
+        background-repeat: no-repeat;
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        filter: blur(10vmin);
+        margin: -10vmin;
+        z-index: -100;
+      }
     </style>
-</head>
+  </head>
 
-
-<body style="position: absolute;width: 100%;height: 100%; margin: 0;background-color: #000">
-
-    <div id="script" style="position: fixed;z-index: 9999;color: #fff;"></div>
+  <body style="position: absolute; width: 100%; height: 100%; margin: 0; background-color: #000">
+    <div id="script" style="position: fixed; z-index: 9999; color: #fff"></div>
     <div>
-        <div id="phoneBackground"></div>
-        <div id="phoneUser">
-            <img src="PG.jpg">
-            <h1>ông↑鹏</h1>
-            <h3 id="phoneText">请点击呼叫对方</h3>
+      <div id="phoneBackground"></div>
+      <div id="phoneUser">
+        <img src="https://www.hejianpeng.cn/images/profile_img.jpg" />
+        <h1>ông↑鹏</h1>
+        <h3 id="phoneText">请点击呼叫对方</h3>
+      </div>
+      <span id="phoneTimer"></span>
+      <div id="phoneButton">
+        <div id="phoneCall" title="make a call">
+          <svg viewBox="0 0 1024 1024">
+            <path
+              d="M443.2 580.8c-88.7-88.6-173.5-191.3-132.8-231.9 58.1-58.1 108.7-93.9 5.8-222-103-128.2-171.7-29.8-228 26.5-64.9 65-3.4 307.1 235.9 546.5 239.3 239.3 481.5 300.9 546.5 235.9 56.3-56.3 154.7-124.9 26.6-227.9s-163.9-52.4-222 5.8c-40.7 40.5-143.3-44.3-232-132.9z"
+              fill="#ffffff"
+            ></path>
+          </svg>
         </div>
-        <span id="phoneTimer"></span>
-        <div id="phoneButton">
-            <div id="phoneCall" title="make a call">
-                <svg viewBox="0 0 1024 1024">
-                    <path
-                        d="M443.2 580.8c-88.7-88.6-173.5-191.3-132.8-231.9 58.1-58.1 108.7-93.9 5.8-222-103-128.2-171.7-29.8-228 26.5-64.9 65-3.4 307.1 235.9 546.5 239.3 239.3 481.5 300.9 546.5 235.9 56.3-56.3 154.7-124.9 26.6-227.9s-163.9-52.4-222 5.8c-40.7 40.5-143.3-44.3-232-132.9z"
-                        fill="#ffffff"></path>
-                </svg>
-            </div>
-            <div id="phoneCancel" title="cancel" style="display: none">
-                <svg viewBox="0 0 1031 1024">
-                    <path
-                        d="M102.4 665.6h-21.942857c-21.942857 0-36.571429-7.314286-51.2-29.257143l-21.942857-43.885714c0-14.628571-7.314286-21.942857-7.314286-36.571429v-14.628571c0-7.314286 7.314286-14.628571 7.314286-21.942857 7.314286-14.628571 21.942857-29.257143 29.257143-43.885715 14.628571-14.628571 36.571429-21.942857 58.514285-36.571428 29.257143-21.942857 65.828571-36.571429 102.4-43.885714 51.2-14.628571 102.4-29.257143 153.6-29.257143 36.571429 0 80.457143-7.314286 117.028572-7.314286H555.885714c29.257143 0 58.514286 7.314286 95.085715 7.314286 43.885714 7.314286 80.457143 7.314286 124.342857 21.942857 58.514286 14.628571 109.714286 29.257143 160.914285 65.828571 21.942857 14.628571 36.571429 29.257143 58.514286 43.885715 7.314286 7.314286 21.942857 29.257143 29.257143 43.885714 0 7.314286 0 7.314286 7.314286 7.314286v7.314285c0 7.314286-7.314286 21.942857-7.314286 29.257143-7.314286 14.628571-7.314286 29.257143-14.628571 43.885714-21.942857 14.628571-29.257143 29.257143-51.2 29.257143-7.314286 0-14.628571 0-21.942858 7.314286H892.342857c-43.885714-7.314286-87.771429-14.628571-131.657143-29.257143-21.942857-7.314286-36.571429-21.942857-43.885714-43.885714 0-7.314286-7.314286-21.942857-7.314286-29.257143 0-21.942857-7.314286-36.571429-29.257143-43.885714 0-14.628571-14.628571-14.628571-14.628571-14.628572-29.257143-7.314286-51.2-14.628571-80.457143-14.628571H446.171429c-29.257143 0-51.2 0-80.457143 7.314286-7.314286 0-29.257143 7.314286-43.885715 7.314285-7.314286 14.628571-14.628571 21.942857-14.628571 36.571429v29.257143c-7.314286 29.257143-21.942857 51.2-51.2 58.514285-36.571429 14.628571-87.771429 29.257143-131.657143 29.257143-14.628571 7.314286-14.628571 7.314286-21.942857 7.314286z"
-                        fill="#ffffff"></path>
-                </svg>
-            </div>
+        <div id="phoneCancel" title="cancel" style="display: none">
+          <svg viewBox="0 0 1031 1024">
+            <path
+              d="M102.4 665.6h-21.942857c-21.942857 0-36.571429-7.314286-51.2-29.257143l-21.942857-43.885714c0-14.628571-7.314286-21.942857-7.314286-36.571429v-14.628571c0-7.314286 7.314286-14.628571 7.314286-21.942857 7.314286-14.628571 21.942857-29.257143 29.257143-43.885715 14.628571-14.628571 36.571429-21.942857 58.514285-36.571428 29.257143-21.942857 65.828571-36.571429 102.4-43.885714 51.2-14.628571 102.4-29.257143 153.6-29.257143 36.571429 0 80.457143-7.314286 117.028572-7.314286H555.885714c29.257143 0 58.514286 7.314286 95.085715 7.314286 43.885714 7.314286 80.457143 7.314286 124.342857 21.942857 58.514286 14.628571 109.714286 29.257143 160.914285 65.828571 21.942857 14.628571 36.571429 29.257143 58.514286 43.885715 7.314286 7.314286 21.942857 29.257143 29.257143 43.885714 0 7.314286 0 7.314286 7.314286 7.314286v7.314285c0 7.314286-7.314286 21.942857-7.314286 29.257143-7.314286 14.628571-7.314286 29.257143-14.628571 43.885714-21.942857 14.628571-29.257143 29.257143-51.2 29.257143-7.314286 0-14.628571 0-21.942858 7.314286H892.342857c-43.885714-7.314286-87.771429-14.628571-131.657143-29.257143-21.942857-7.314286-36.571429-21.942857-43.885714-43.885714 0-7.314286-7.314286-21.942857-7.314286-29.257143 0-21.942857-7.314286-36.571429-29.257143-43.885714 0-14.628571-14.628571-14.628571-14.628571-14.628572-29.257143-7.314286-51.2-14.628571-80.457143-14.628571H446.171429c-29.257143 0-51.2 0-80.457143 7.314286-7.314286 0-29.257143 7.314286-43.885715 7.314285-7.314286 14.628571-14.628571 21.942857-14.628571 36.571429v29.257143c-7.314286 29.257143-21.942857 51.2-51.2 58.514285-36.571429 14.628571-87.771429 29.257143-131.657143 29.257143-14.628571 7.314286-14.628571 7.314286-21.942857 7.314286z"
+              fill="#ffffff"
+            ></path>
+          </svg>
         </div>
+      </div>
     </div>
-</body>
-<script>
-    window.exports = {}
-</script>
-<script src="flac.wasm.js"></script>
-<script>
-    document.getElementById("phoneCancel").onclick = function () {
-        this.style.display = "none";
-        document.getElementById("phoneText").innerHTML = "呼叫结束";
-        state = 9
-        phoneTimer && clearInterval(phoneTimer)
-    }
-
-    const uid = new URL(location.href).searchParams.get("uid") || Math.random().toString(16).substr(-6)
-    const mediaStreamConstraints = {
-        audio: {
-            sampleRate: 48000,
-            // sampleSize: 16,
-            autoGainControl: false,
-            noiseSuppression: false,
-            echoCancellation: uid.includes("test"),
-            volume: 1
-        }
-    }
-
-    const ws = new URL(location.href)
-    ws.protocol = ws.protocol.replace("http", "ws")
-    ws.pathname = "/WebSocket"
-    ws.search = "?uid=" + uid
-    const bufs = []
-    let webSocket
-    const tryToSend = () => {
-        let buf
-        while (webSocket?.readyState === 1 && (buf = bufs.shift())) {
-            webSocket.send(buf)
-        }
-    }
-    let reConTimer = 0
-    const reCon = () => {
-        if (reConTimer || webSocket?.readyState === 1) return
-        if (webSocket?.readyState === 0) {
-            reConTimer = setTimeout(() => {
-                reConTimer && clearTimeout(reConTimer)
-                reConTimer = 0;
-                webSocket?.close();
-                reCon()
-            }, 3000)
-            return
-        }
-        reConTimer && clearTimeout(reConTimer)
-        reConTimer = 0
-        console.log("连接")
-        webSocket?.close()
-        webSocket = new WebSocket(ws);
-        webSocket.onerror = webSocket.onclose = (e) => {
-            console.log("重连", e)
-            setTimeout(() => reCon(), 500)
-        }
-        webSocket.onopen = () => {
-            tryToSend();
-            webSocket.onmessage = onMsg
-        }
-    }
-    let onMsg = () => { }
-
-    const timerDOM = document.getElementById("phoneTimer");
-    let time = 0;
-    /** 0刚打开，1Flac加载成功，2已发送第一帧，5点击了发起通话，6正在通话，9点击结束通话 */
-    let state = 0
-    let isStart = false;
-    let phoneTimer = 0
-    let isPc = navigator.platform.toLowerCase().includes("win") || navigator.platform.toLowerCase().includes("mac")
-    const start = () => {
-        state = 6
-        document.getElementById("phoneText").innerHTML = "";
-        timerDOM.innerHTML = "00:00";
-        phoneTimer = setInterval(function () {
-            time++;
-            timerDOM.innerHTML = (time >= 3600 ? ((time / 3600 | 0) + ":") : "") + (((time / 60 | 0) % 60 + 100) + ":").substr(1) + ((time % 60 + 100) + "").substr(1);
-        }, 1000);
-    }
-    navigator.mediaDevices.getUserMedia(mediaStreamConstraints).then(async a => {
-        // alert(JSON.stringify(a.getTracks()[0].getSettings()))
-        a.getTracks().forEach((track) => track.stop());
-        const allDevices = (await navigator.mediaDevices.enumerateDevices()).filter(({ kind, deviceId }) => kind === "audioinput")
-        if (allDevices.find(({ label }) => label.includes("bluetooth"))) alert("请关闭蓝牙开关，暂不支持蓝牙耳机");
-
-        for (const keyword of ["usb", "wire", "speaker"]) {
-            const { deviceId, label } = allDevices.find(({ label }) => label.toLowerCase().includes(keyword)) || {}
-            if (deviceId) {
-                if (label.toLowerCase().includes("speaker")) document.getElementById("phoneTimer").innerHTML = "当前使用的是扬声器，通话质量会非常差，建议使用有线耳机！"
-                document.getElementById("script").innerHTML += "<p>优先选择：" + label + "</p>";
-                mediaStreamConstraints.audio.deviceId = deviceId
-                break;
-            }
-        }
-        allDevices.forEach(function (device) {
-            //audioinput   videoinput（视频）  audiooutput(音频)
-            document.getElementById("script").innerHTML += "<p>" + device.label + "</p>";
-        })
-    })
-    Flac.onready = async () => {
-        let time = performance.now();
-        let time2 = performance.now();
-        onMsg = ({ data }) => {
-            switch (state) {
-                case 6: //(isPc || !document.hidden) && 
-                    data.arrayBuffer().then(audioData => playFlacAudio?.sendFlacData(audioData)); return
-                case 5: start(); return
-            }
-        };
-        reCon();
-        window.onclick = (e) => {
-            window.playFlacAudio?.restart();
-            wakeLock(e)
-        }
-
-        new GetUserMediaAudioToFlac(await navigator.mediaDevices.getUserMedia(mediaStreamConstraints)).onFlacData((buf, currentFrame) => {
-            //  console.log(currentFrame)
-            bufs.push(buf)
-            tryToSend()
-            if (state === 1) {
-                state = 2
-                return
-            }
-
-            if (state === 6 && buf.byteLength > 300) {
-                const totalSize = buf.byteLength;
-                const ms = -time + (time = performance.now());
-                document.getElementById("script").innerHTML = "<p>" + ((totalSize * 8) / ms).toFixed(2) + " kbps</p>" + "<p>" + ((totalSize * 100) / ((mediaStreamConstraints.audio.sampleRate / 1000) * (16 / 8) * ms)).toFixed(2) + " %</p><p>录音延迟" + (-time2 + (time2 = performance.now())).toFixed(2) + " ms</p><p>放音延迟" + (window.playFlacAudio.playPCMAudio.quality() / (mediaStreamConstraints.audio.sampleRate / 1000)).toFixed(1) + "ms</p>";
-            }
-        })
-    }
-    document.getElementById("phoneCall").onclick = async function () {
-        state = 5
-        window.playFlacAudio = new PlayFlacAudio();
-        this.style.display = "none"
-        document.getElementById("phoneCancel").style.display = "";
-        document.getElementById("phoneText").innerHTML = "正在拨号";
-        wakeLock()
-    };
-
-    const wakeLock = (e) => {
-        if (document.hidden) return
-        if (navigator.wakeLock) {
-            navigator.wakeLock.request("screen")
-            //   alert("支持锁定")
-        } else if (!e) {
-            alert("不支持锁定，请一直保持APP前台")
-        }
-    }
-    setInterval(() => wakeLock(1), 10000)
-    // document.getElementById("phoneCall").click()
-
-</script>
-
+  </body>
+  <!-- <script src="/libflac.js-5.4.0/libflac.wasm.js"></script> -->
+  <script src="https://tool.hejianpeng.cn/js/libflac/libflac.min.wasm.js"></script>
+  <script src="phoneFHD.js"></script>
 </html>

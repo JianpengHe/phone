@@ -1,4 +1,5 @@
 /node_modules
+/dist
 *.temp
 *.flac
 *.wav
@@ -8,3 +9,4 @@
 *.symbols
 *.tsbuildinfo
 *.d.ts
+/web/*.js

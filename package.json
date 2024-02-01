@@ -4,7 +4,7 @@
   "description": "C++和WEB版本的语音通话",
   "main": "testServer.js",
   "scripts": {
-    "test": "node testServer"
+    "watch": "npx webpack --watch"
   },
   "repository": {
     "type": "git",
@@ -20,6 +20,9 @@
   "devDependencies": {
     "@types/node": "^20.10.5",
     "prettier": "^2.5.1",
-    "typescript": "^5.3.3"
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.3",
+    "webpack": "^5.90.0",
+    "webpack-cli": "^5.1.4"
   }
 }

@@ -5,7 +5,56 @@ import * as child_process from "child_process";
 import * as path from "path";
 import * as os from "os";
 import { WebSocket } from "../tools/dist/node/WebSocket";
-import { MatchPartner } from "../tools/dist/node/MatchPartner";
+
+class MatchPartner<T> {
+  //   private nameItem: Map<string, T> = new Map();
+  private partner: Map<T, T | undefined> = new Map();
+  public addPartner(item1: T, item2: T | undefined) {
+    this.partner.set(item1, item2);
+    if (item2) {
+      this.partner.set(item2, item1);
+    }
+    return this;
+  }
+  public add(item: T, name?: string) {
+    let other: T | undefined = this.partner.get(item);
+    if (!other) {
+      for (const [otherItem, v] of this.partner) {
+        if (!v) {
+          other = otherItem;
+        }
+      }
+    }
+    this.addPartner(item, other);
+    // if (name) {
+    //   this.nameItem.set(name, item);
+    // }
+    return this;
+  }
+  public del(item: T) {
+    const partner = this.getPartner(item);
+    this.partner.delete(item);
+    if (partner) {
+      this.partner.set(partner, undefined);
+    }
+    // for (const [name, item2] of this.nameItem) {
+    //   if (item2 === item) {
+    //     this.nameItem.delete(name);
+    //     break;
+    //   }
+    // }
+    return this;
+  }
+  public getPartner(item: T) {
+    return this.partner.get(item);
+  }
+  //   public getPartnerByName(name: string) {
+  //     const my = this.nameItem.get(name);
+  //     if (!my) return undefined;
+  //     return this.getPartner(my);
+  //   }
+}
+
 const get = () =>
   new Promise<Buffer>(r =>
     https.get("https://tool.hejianpeng.cn/certificate/t.hejianpeng.com", async res => {
