@@ -34,8 +34,55 @@ document.body.appendChild(showFps);
 
 const video = document.createElement("video");
 video.autoplay = true;
-window.onclick = async function () {
-  window.onclick = null;
+
+(() => {
+  const canvas = document.createElement("canvas");
+  // canvas.style.maxWidth = "100vw";
+  // canvas.style.maxHeight = "100vh";
+  document.body.appendChild(canvas);
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  const queue: HTMLImageElement[] = [];
+  const tryTo = () => {
+    let img: HTMLImageElement | undefined;
+    while (queue[0]?.dataset?.load && (img = queue.shift())) {
+      const { height, width } = img;
+      console.log(height, width);
+      if (height && canvas.height !== height) canvas.height = height;
+      if (width && canvas.width !== width) canvas.width = width;
+      context.drawImage(img, 0, 0);
+    }
+  };
+  let myImageData: ImageData; // = context.getImageData(left, top, width, height);
+  webSocket.addEventListener("message", async ({ data }: { data: Blob }) => {
+    try {
+      // nowQueueId++;
+      const img = new Image();
+      queue.push(img);
+      img.src = URL.createObjectURL(
+        await new Response(data.stream().pipeThrough(new DecompressionStream("gzip"))).blob()
+      );
+
+      img.onload = () => {
+        framesPerSec++;
+        // context.drawImage(img, 0, 0);
+        URL.revokeObjectURL(img.src);
+        img.dataset.load = "1";
+        tryTo();
+      };
+    } catch (e) {
+      const [width, height] = new Uint16Array(await data.arrayBuffer());
+      canvas.width = width;
+      canvas.height = height;
+      context.fillStyle = "#000";
+      context.fillRect(0, 0, width, height);
+      myImageData = context.getImageData(0, 0, width, height);
+      queue.length = 0;
+      // canvas.style.transform = `rotate(${screen.width < screen.height && width > height ? 90 : 0}deg)`;
+    }
+  });
+})();
+(async function () {
   try {
     video.srcObject = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
     const videoTrack = video.srcObject.getVideoTracks()[0];
@@ -125,53 +172,6 @@ window.onclick = async function () {
   } catch (err) {
     console.error("Error: " + err);
   }
-};
-(() => {
-  const canvas = document.createElement("canvas");
-  // canvas.style.maxWidth = "100vw";
-  // canvas.style.maxHeight = "100vh";
-  document.body.appendChild(canvas);
-  const context = canvas.getContext("2d");
-  if (!context) return;
-  const queue: HTMLImageElement[] = [];
-  const tryTo = () => {
-    let img: HTMLImageElement | undefined;
-    while (queue[0]?.dataset?.load && (img = queue.shift())) {
-      const { height, width } = img;
-      console.log(height, width);
-      if (height && canvas.height !== height) canvas.height = height;
-      if (width && canvas.width !== width) canvas.width = width;
-      context.drawImage(img, 0, 0);
-    }
-  };
-  let myImageData: ImageData; // = context.getImageData(left, top, width, height);
-  webSocket.addEventListener("message", async ({ data }: { data: Blob }) => {
-    try {
-      // nowQueueId++;
-      const img = new Image();
-      queue.push(img);
-      img.src = URL.createObjectURL(
-        await new Response(data.stream().pipeThrough(new DecompressionStream("gzip"))).blob()
-      );
-
-      img.onload = () => {
-        framesPerSec++;
-        // context.drawImage(img, 0, 0);
-        URL.revokeObjectURL(img.src);
-        img.dataset.load = "1";
-        tryTo();
-      };
-    } catch (e) {
-      const [width, height] = new Uint16Array(await data.arrayBuffer());
-      canvas.width = width;
-      canvas.height = height;
-      context.fillStyle = "#000";
-      context.fillRect(0, 0, width, height);
-      myImageData = context.getImageData(0, 0, width, height);
-      queue.length = 0;
-      // canvas.style.transform = `rotate(${screen.width < screen.height && width > height ? 90 : 0}deg)`;
-    }
-  });
 })();
 
 // function stopCapture(evt) {

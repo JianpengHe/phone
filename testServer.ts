@@ -121,13 +121,15 @@ const fileMap = new Map<WebSocket, fs.WriteStream>();
                 body.push(chunk);
               }
               const buffer = Buffer.concat(body);
-              fileMap.get(webSocket)?.write(buffer);
-              videoMatchPartner.getPartner(webSocket)?.send(buffer);
-              isSave &&
+
+              if (isSave) {
                 zlib.gunzip(
                   buffer,
                   (err, buf) => buf && fs.writeFile(new Date().getTime() + "." + uid + ".webp", buf, () => {})
                 );
+              } else {
+                videoMatchPartner.getPartner(webSocket)?.send(buffer);
+              }
             })
             .on("close", () => {
               setTimeout(() => {

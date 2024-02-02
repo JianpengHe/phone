@@ -12,8 +12,10 @@ const mediaStreamConstraintsAudio: MediaTrackConstraints = {
   noiseSuppression: Boolean(searchParams.get("noiseSuppression")),
   echoCancellation: Boolean(searchParams.get("echoCancellation")),
 };
+const isPc = navigator.platform.toLowerCase().includes("win") || navigator.platform.toLowerCase().includes("mac");
 const mediaStreamConstraints: MediaStreamConstraints = {
   audio: mediaStreamConstraintsAudio,
+  video: { facingMode: "user" },
 };
 
 const ws = new URL(location.href);
@@ -24,17 +26,73 @@ const phoneWebSocketUrl = String(ws);
 ws.pathname = "/WebSocketVideo";
 const videoWebSocketUrl = String(ws);
 
-(() => {
+(async () => {
   const phoneTimerDOM = document.getElementById("phoneTimer");
-  const phoneCancel = document.getElementById("phoneCancel");
-  const phoneText = document.getElementById("phoneText");
-  const script = document.getElementById("script");
+  const phoneCancelDOM = document.getElementById("phoneCancel");
+  const duringDOM = document.getElementById("during");
+  const screenShare = document.getElementById("screenShare");
+  const phoneTextDOM = document.getElementById("phoneText");
+  const scriptDOM = document.getElementById("script");
 
-  if (!phoneTimerDOM || !phoneCancel || !phoneText || !script) return;
+  if (!phoneTimerDOM || !phoneCancelDOM || !phoneTextDOM || !scriptDOM || !duringDOM || !screenShare) return;
 
-  phoneCancel.onclick = function () {
-    phoneCancel.style.display = "none";
-    phoneText.innerHTML = "呼叫结束";
+  /** 申请权限 */
+  while (1) {
+    try {
+      const a = await navigator.mediaDevices.getUserMedia(mediaStreamConstraints);
+      // alert(JSON.stringify(a.getTracks()[0].getSettings()))
+      a.getTracks().forEach(track => track.stop());
+      const allDevices = (await navigator.mediaDevices.enumerateDevices()).filter(
+        ({ kind, deviceId }) => kind === "audioinput"
+      );
+      if (allDevices.find(({ label }) => label.includes("bluetooth"))) alert("请关闭蓝牙开关，暂不支持蓝牙耳机");
+
+      for (const keyword of ["usb", "wire", "speaker"]) {
+        const { deviceId, label } = allDevices.find(({ label }) => label.toLowerCase().includes(keyword)) || {};
+        if (deviceId) {
+          if (String(label).toLowerCase().includes("speaker"))
+            phoneTimerDOM.innerHTML = "当前使用的是扬声器，通话质量会非常差，建议使用有线耳机！";
+          scriptDOM.innerHTML += "<p>优先选择：" + label + "</p>";
+          mediaStreamConstraintsAudio.deviceId = deviceId;
+          break;
+        }
+      }
+      allDevices.forEach(function (device) {
+        //audioinput   videoinput（视频）  audiooutput(音频)
+        scriptDOM.innerHTML += "<p>" + device.label + "</p>";
+      });
+      break;
+    } catch (e) {
+      console.log(e);
+      const res = String(e).toLowerCase();
+      if (res.includes("permission denied")) {
+        alert("没有麦克风/摄像头权限");
+        location.reload();
+      } else if (res.includes("device not found")) {
+        if (mediaStreamConstraints.video) {
+          delete mediaStreamConstraints.video;
+          continue;
+        } else if (mediaStreamConstraints.audio) {
+          phoneTimerDOM.innerHTML = "没找到麦克风设备";
+          delete mediaStreamConstraints.audio;
+          break;
+        } else {
+          break;
+        }
+      } else {
+        phoneTimerDOM.innerHTML = res;
+        break;
+      }
+    }
+  }
+
+  screenShare.onclick = () => {
+    if (!isPc) return;
+    window.open("ScreenShare.html", "ScreenShare", "height=600,width=600");
+  };
+  phoneCancelDOM.onclick = () => {
+    duringDOM.style.display = "none";
+    phoneTextDOM.innerHTML = "呼叫结束";
     state = 9;
     phoneTimer && clearInterval(phoneTimer);
   };
@@ -43,10 +101,10 @@ const videoWebSocketUrl = String(ws);
   /** 0刚打开，1Flac加载成功，2已发送第一帧，5点击了发起通话，6正在通话，9点击结束通话 */
   let state = 0;
   let phoneTimer = 0;
-  // let isPc = navigator.platform.toLowerCase().includes("win") || navigator.platform.toLowerCase().includes("mac");
+  //
   const start = () => {
     state = 6;
-    phoneText.innerHTML = "";
+    phoneTextDOM.innerHTML = "";
     phoneTimerDOM.innerHTML = "00:00";
     phoneTimer = Number(
       setInterval(function () {
@@ -58,29 +116,7 @@ const videoWebSocketUrl = String(ws);
       }, 1000)
     );
   };
-  navigator.mediaDevices.getUserMedia(mediaStreamConstraints).then(async a => {
-    // alert(JSON.stringify(a.getTracks()[0].getSettings()))
-    a.getTracks().forEach(track => track.stop());
-    const allDevices = (await navigator.mediaDevices.enumerateDevices()).filter(
-      ({ kind, deviceId }) => kind === "audioinput"
-    );
-    if (allDevices.find(({ label }) => label.includes("bluetooth"))) alert("请关闭蓝牙开关，暂不支持蓝牙耳机");
 
-    for (const keyword of ["usb", "wire", "speaker"]) {
-      const { deviceId, label } = allDevices.find(({ label }) => label.toLowerCase().includes(keyword)) || {};
-      if (deviceId) {
-        if (String(label).toLowerCase().includes("speaker"))
-          phoneTimerDOM.innerHTML = "当前使用的是扬声器，通话质量会非常差，建议使用有线耳机！";
-        script.innerHTML += "<p>优先选择：" + label + "</p>";
-        mediaStreamConstraintsAudio.deviceId = deviceId;
-        break;
-      }
-    }
-    allDevices.forEach(function (device) {
-      //audioinput   videoinput（视频）  audiooutput(音频)
-      script.innerHTML += "<p>" + device.label + "</p>";
-    });
-  });
   Flac.onready = async () => {
     let time = performance.now();
     let time2 = performance.now();
@@ -113,7 +149,7 @@ const videoWebSocketUrl = String(ws);
         if (state === 6 && buf.byteLength > 300) {
           const totalSize = buf.byteLength;
           const ms = -time + (time = performance.now());
-          script.innerHTML =
+          scriptDOM.innerHTML =
             "<p>" +
             ((totalSize * 8) / ms).toFixed(2) +
             " kbps</p>" +
@@ -134,8 +170,8 @@ const videoWebSocketUrl = String(ws);
     state = 5;
     playFlacAudio = new PlayFlacAudio();
     this.style.display = "none";
-    phoneCancel.style.display = "";
-    phoneText.innerHTML = "正在拨号";
+    duringDOM.style.display = "";
+    phoneTextDOM.innerHTML = "正在拨号";
     wakeLock();
   });
 
