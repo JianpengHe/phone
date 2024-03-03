@@ -15,7 +15,7 @@ const mediaStreamConstraintsAudio: MediaTrackConstraints = {
 const isPc = navigator.platform.toLowerCase().includes("win") || navigator.platform.toLowerCase().includes("mac");
 const mediaStreamConstraints: MediaStreamConstraints = {
   audio: mediaStreamConstraintsAudio,
-  video: { facingMode: "user" },
+  video: !searchParams.get("disableCamera") && { facingMode: "user", height: 720, width: 1280 },
 };
 
 const ws = new URL(location.href);
@@ -30,11 +30,14 @@ const videoWebSocketUrl = String(ws);
   const phoneTimerDOM = document.getElementById("phoneTimer");
   const phoneCancelDOM = document.getElementById("phoneCancel");
   const duringDOM = document.getElementById("during");
-  const screenShare = document.getElementById("screenShare");
+
   const phoneTextDOM = document.getElementById("phoneText");
   const scriptDOM = document.getElementById("script");
+  const video = document.getElementById("myVideo") as HTMLVideoElement;
+  const videoCall = document.getElementById("videoCall");
+  const main = document.getElementById("main");
 
-  if (!phoneTimerDOM || !phoneCancelDOM || !phoneTextDOM || !scriptDOM || !duringDOM || !screenShare) return;
+  if (!phoneTimerDOM || !phoneCancelDOM || !phoneTextDOM || !scriptDOM || !duringDOM || !videoCall || !main) return;
 
   /** 申请权限 */
   while (1) {
@@ -86,15 +89,15 @@ const videoWebSocketUrl = String(ws);
     }
   }
 
-  screenShare.onclick = () => {
-    if (!isPc) return;
-    window.open("ScreenShare.html", "ScreenShare", "height=600,width=600");
+  videoCall.onclick = () => {
+    video.style.display = video.style.display === "block" ? "none" : "block";
   };
   phoneCancelDOM.onclick = () => {
     duringDOM.style.display = "none";
     phoneTextDOM.innerHTML = "呼叫结束";
     state = 9;
     phoneTimer && clearInterval(phoneTimer);
+    video.style.display === "block" && videoCall.click();
   };
 
   let time = 0;
@@ -115,8 +118,10 @@ const videoWebSocketUrl = String(ws);
           ((time % 60) + 100 + "").substr(1);
       }, 1000)
     );
+    /** 全屏 */
+    // document.body?.requestFullscreen?.();
   };
-
+  const mediaStream = await navigator.mediaDevices.getUserMedia(mediaStreamConstraints);
   Flac.onready = async () => {
     let time = performance.now();
     let time2 = performance.now();
@@ -137,35 +142,141 @@ const videoWebSocketUrl = String(ws);
       wakeLock(e);
     };
 
-    new GetUserMediaAudioToFlac(await navigator.mediaDevices.getUserMedia(mediaStreamConstraints)).onFlacData(
-      (buf, currentFrame) => {
-        //  console.log(currentFrame)
-        webSocket.send(buf);
-        if (state === 1) {
-          state = 2;
-          return;
+    new GetUserMediaAudioToFlac(mediaStream).onFlacData((buf, currentFrame) => {
+      //  console.log(currentFrame)
+      webSocket.send(buf);
+      if (state === 1) {
+        state = 2;
+        return;
+      }
+
+      if (state === 6 && buf.byteLength > 300) {
+        const totalSize = buf.byteLength;
+        const ms = -time + (time = performance.now());
+        scriptDOM.innerHTML =
+          "<p>" +
+          ((totalSize * 8) / ms).toFixed(2) +
+          " kbps</p>" +
+          "<p>" +
+          ((totalSize * 100) / ((Number(mediaStreamConstraintsAudio.sampleRate) / 1000) * (16 / 8) * ms)).toFixed(2) +
+          " %</p><p>录音延迟" +
+          (-time2 + (time2 = performance.now())).toFixed(2) +
+          " ms</p><p>放音延迟" +
+          (playFlacAudio.playPCMAudio?.quality() / (Number(mediaStreamConstraintsAudio.sampleRate) / 1000)).toFixed(1) +
+          "ms</p>";
+      }
+    });
+  };
+
+  (() => {
+    if (mediaStreamConstraints.video) {
+      video.srcObject = mediaStream;
+      video.play();
+    }
+    const webSocket = new ReliableWebSocket(videoWebSocketUrl);
+    const canvas = document.createElement("canvas");
+    // canvas.style.maxWidth = "100vw";
+    // canvas.style.maxHeight = "100vh";
+    document.body.appendChild(canvas);
+    const context = canvas.getContext("2d");
+    const screenShare = document.getElementById("screenShare");
+    if (!context || !screenShare) return;
+    screenShare.onclick = () => {
+      if (!isPc) return;
+      webSocket.close();
+      window.open("ScreenShare.html", "ScreenShare", "height=600,width=600");
+    };
+    const queue: HTMLImageElement[] = [];
+    const tryTo = () => {
+      let img: HTMLImageElement | undefined;
+      while (queue[0]?.dataset?.load && (img = queue.shift())) {
+        const { height, width } = img;
+
+        if (height && canvas.height !== height) {
+          canvas.height = height;
+          isStart || start(width, height);
+        }
+        if (width && canvas.width !== width) {
+          canvas.width = width;
+          isStart || start(width, height);
         }
 
-        if (state === 6 && buf.byteLength > 300) {
-          const totalSize = buf.byteLength;
-          const ms = -time + (time = performance.now());
-          scriptDOM.innerHTML =
-            "<p>" +
-            ((totalSize * 8) / ms).toFixed(2) +
-            " kbps</p>" +
-            "<p>" +
-            ((totalSize * 100) / ((Number(mediaStreamConstraintsAudio.sampleRate) / 1000) * (16 / 8) * ms)).toFixed(2) +
-            " %</p><p>录音延迟" +
-            (-time2 + (time2 = performance.now())).toFixed(2) +
-            " ms</p><p>放音延迟" +
-            (playFlacAudio.playPCMAudio?.quality() / (Number(mediaStreamConstraintsAudio.sampleRate) / 1000)).toFixed(
-              1
-            ) +
-            "ms</p>";
-        }
+        context.drawImage(img, 0, 0);
       }
-    );
-  };
+    };
+    //  let myImageData: ImageData; // = context.getImageData(left, top, width, height);
+    webSocket.addEventListener("message", async ({ data }: { data: Blob }) => {
+      if (state !== 6) return;
+      try {
+        // nowQueueId++;
+        const img = new Image();
+        queue.push(img);
+        img.src = URL.createObjectURL(
+          await new Response(data.stream().pipeThrough(new DecompressionStream("gzip"))).blob()
+        );
+
+        img.onload = () => {
+          // framesPerSec++;
+          // context.drawImage(img, 0, 0);
+          URL.revokeObjectURL(img.src);
+          img.dataset.load = "1";
+          tryTo();
+        };
+      } catch (e) {
+        const [width, height] = new Uint16Array(await data.arrayBuffer());
+        canvas.width = width;
+        canvas.height = height;
+        context.fillStyle = "#000";
+        context.fillRect(0, 0, width, height);
+        //  myImageData = context.getImageData(0, 0, width, height);
+        queue.length = 0;
+        // canvas.style.transform = `rotate(${screen.width < screen.height && width > height ? 90 : 0}deg)`;
+      }
+    });
+    let isStart = false;
+    let mainShowTimer = 0;
+    const start = (width: number, height: number) => {
+      isStart = true;
+      main.style.animation = "hide 0.5s forwards";
+      context.fillStyle = "#000";
+      context.fillRect(0, 0, width, height);
+      document.body.onclick = () => {
+        mainShowTimer && clearTimeout(mainShowTimer);
+        main.style.animation = "show 0.5s forwards";
+        mainShowTimer = Number(
+          setTimeout(() => {
+            mainShowTimer = 0;
+            main.style.animation = "hide 0.5s forwards";
+          }, 3000)
+        );
+      };
+    };
+
+    const videoTrack = mediaStream.getVideoTracks()[0];
+    video.addEventListener("canplay", async () => {
+      const height = video.videoHeight;
+      const width = video.videoWidth;
+      const offscreen = new OffscreenCanvas(width, height);
+      const context = offscreen.getContext("2d", { willReadFrequently: true });
+      if (!context) return;
+      while (videoTrack.readyState === "live") {
+        await new Promise(r => setTimeout(r, 10000));
+        context.drawImage(video, 0, 0, width, height);
+
+        const webp = await new Response(
+          (
+            await offscreen.convertToBlob({
+              quality: 1,
+              type: "image/webp",
+            })
+          )
+            .stream()
+            .pipeThrough(new CompressionStream("gzip"))
+        ).arrayBuffer();
+        webSocket.send(webp);
+      }
+    });
+  })();
   document.getElementById("phoneCall")?.addEventListener("click", async function () {
     state = 5;
     playFlacAudio = new PlayFlacAudio();

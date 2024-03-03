@@ -53,7 +53,7 @@ video.autoplay = true;
       context.drawImage(img, 0, 0);
     }
   };
-  let myImageData: ImageData; // = context.getImageData(left, top, width, height);
+  // let myImageData: ImageData; // = context.getImageData(left, top, width, height);
   webSocket.addEventListener("message", async ({ data }: { data: Blob }) => {
     try {
       // nowQueueId++;
@@ -76,7 +76,7 @@ video.autoplay = true;
       canvas.height = height;
       context.fillStyle = "#000";
       context.fillRect(0, 0, width, height);
-      myImageData = context.getImageData(0, 0, width, height);
+      // myImageData = context.getImageData(0, 0, width, height);
       queue.length = 0;
       // canvas.style.transform = `rotate(${screen.width < screen.height && width > height ? 90 : 0}deg)`;
     }
