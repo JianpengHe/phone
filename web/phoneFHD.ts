@@ -1,5 +1,6 @@
 import { GetUserMediaAudioToFlac, PlayFlacAudio } from "./flac.wasm";
 import { ReliableWebSocket } from "../../code-snippet/browser/ReliableWebSocket";
+import { Gesture } from "../../code-snippet/browser/Gesture";
 
 /// <reference path='../libflac.js-5.4.0/libflac.wasm.d.ts'/>
 const { searchParams } = new URL(location.href);
@@ -90,6 +91,7 @@ const videoWebSocketUrl = String(ws);
   }
 
   videoCall.onclick = () => {
+    window.onselectstart = () => false;
     video.style.display = video.style.display === "block" ? "none" : "block";
   };
   phoneCancelDOM.onclick = () => {
@@ -175,8 +177,21 @@ const videoWebSocketUrl = String(ws);
     }
     const webSocket = new ReliableWebSocket(videoWebSocketUrl);
     const canvas = document.createElement("canvas");
-    // canvas.style.maxWidth = "100vw";
-    // canvas.style.maxHeight = "100vh";
+    const gesture = new Gesture();
+    canvas.style.transformOrigin = `0px 0px`;
+    canvas.style.position = "fixed";
+    canvas.style.zIndex = "0";
+    canvas.style.left = "0";
+    canvas.style.top = "0";
+
+    window.addEventListener("touchstart", gesture.onStartListener, false);
+    window.addEventListener("mousedown", gesture.onStartListener, false);
+    window.addEventListener("wheel", gesture.onScaleListener, false);
+    window.addEventListener("dblclick", gesture.onScaleListener, false);
+    gesture.onTransform = ({ transformText }) => {
+      canvas.style.transform = transformText;
+    };
+
     document.body.appendChild(canvas);
     const context = canvas.getContext("2d");
     const screenShare = document.getElementById("screenShare");
