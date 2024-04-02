@@ -19,6 +19,12 @@ const displayMediaOptions = {
 
 const uid = "test" + Math.random().toString(16).substr(-6);
 const ws = new URL(location.href);
+const isPro = !ws.port;
+if (isPro) {
+  ws.hostname = "sz.hejianpeng.cn";
+  ws.port = "48452";
+}
+ws.hash = "";
 ws.protocol = ws.protocol.replace("http", "ws");
 ws.pathname = "/WebSocketVideo";
 ws.search = "?uid=" + uid;

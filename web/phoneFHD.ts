@@ -3,7 +3,9 @@ import { ReliableWebSocket } from "../../code-snippet/browser/ReliableWebSocket"
 import { Gesture } from "../../code-snippet/browser/Gesture";
 
 /// <reference path='../libflac.js-5.4.0/libflac.wasm.d.ts'/>
-const { searchParams } = new URL(location.href);
+const { searchParams, port } = new URL(location.href);
+/** 是否是生产环境 */
+const isPro = !port;
 const uid = searchParams.get("uid") || Math.random().toString(16).substr(-6);
 let playFlacAudio: PlayFlacAudio;
 const mediaStreamConstraintsAudio: MediaTrackConstraints = {
@@ -16,10 +18,15 @@ const mediaStreamConstraintsAudio: MediaTrackConstraints = {
 const isPc = navigator.platform.toLowerCase().includes("win") || navigator.platform.toLowerCase().includes("mac");
 const mediaStreamConstraints: MediaStreamConstraints = {
   audio: mediaStreamConstraintsAudio,
-  video: !searchParams.get("disableCamera") && { facingMode: "user", height: 720, width: 1280 },
+  video: !(searchParams.get("disableCamera") || isPro) && { facingMode: "user", height: 720, width: 1280 },
 };
 
 const ws = new URL(location.href);
+if (isPro) {
+  ws.hostname = "sz.hejianpeng.cn";
+  ws.port = "48452";
+}
+ws.hash = "";
 ws.protocol = ws.protocol.replace("http", "ws");
 ws.search = "?uid=" + uid;
 ws.pathname = "/WebSocket";
