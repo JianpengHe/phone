@@ -15,16 +15,17 @@ const next = async files => {
       let BFrameSize = (curFrame - savedFrame) * 2;
       const time = (BFrameSize * 2) / 48000;
 
-      console.log("---------------------------------------");
-      console.log("需要补帧" + time.toFixed(3) + "秒");
+
       if (time < -60 || time > 300) {
-        console.log("?");
+        // console.log("?");
         f.end();
-        endFile(timestamp, savedFrame / 48);
+        await endFile(timestamp, savedFrame / 48);
         f = undefined;
         timestamp = 0;
         savedFrame = 0;
       } else {
+        console.log("---------------------------------------");
+        console.log("需要补帧" + time.toFixed(3) + "秒");
         savedFrame = curFrame;
         while (BFrameSize) {
           // console.log(1);
@@ -43,7 +44,7 @@ const next = async files => {
       timestamp = fileList[0];
       f = fs.createWriteStream("PGM" + timestamp + ".pcm");
     }
-    console.log("ff");
+    // console.log("ff");
     const ffmpeg = child_process.spawn("ffmpeg", ["-i", "-", "-f", "s16le", "-"]);
 
     // ffmpeg.stderr.pipe(process.stdout, { end: false });
@@ -70,14 +71,16 @@ const next = async files => {
   // }
   f?.end();
   f = undefined;
-  timestamp && endFile(timestamp, savedFrame / 48);
+  if (timestamp) await endFile(timestamp, savedFrame / 48);
 };
 
 fs.readdir("./", (err, files) => {
   const groupMap = new Map();
   for (const file of files) {
     const [_, timestamp, groupId] = file.match(/^(\d{13})\.([\da-f]{6})\.temp$/) || [];
+
     if (!_) continue;
+    child_process.execSync(`fileTime.exe ${file} ${Math.round(Number(timestamp) / 1000)} ${Math.floor(fs.statSync(file).mtimeMs / 1000)}`)
     const arr = groupMap.get(groupId) || [];
     arr.push(Number(timestamp));
     groupMap.set(groupId, arr);
@@ -89,15 +92,25 @@ fs.readdir("./", (err, files) => {
 });
 
 const endFile = async (timestamp, duration) => {
-  console.log(" ");
-  console.log("PGM" + timestamp + ".pcm", "转flac");
-  console.log(" ");
+  for (let i = 0; i < 3; i++) {
+    console.log(" ");
+    console.log("PGM" + timestamp + ".pcm", "转flac", `第${i + 1}次尝试`);
+    console.log(" ");
 
-  child_process.exec(
-    `flac.exe -8 -f  -s --endian=little --channels=1 --bps=16 --sample-rate=48000 --sign=signed  --delete-input-file PGM${timestamp}.pcm && fileTime.exe "PGM${timestamp}.flac" ${Math.floor(
-      timestamp / 1000
-    )} ${Math.floor((timestamp + duration) / 1000)} `
-  );
+    const s = child_process.spawn(
+      `flac.exe`, [`-8`, `-f`, `--endian=little`, `--channels=1`, `--bps=16`, `--sample-rate=48000`, `--sign=signed`, `--delete-input-file`, `PGM${timestamp}.pcm`],
+    );
+    s.stderr.pipe(process.stdout, { end: false });
+    s.stdout.pipe(process.stdout, { end: false });
+    if (await new Promise(r => {
+      s.once("error", () => r(false))
+      s.once("close", () => r(true))
+    })) break
+  }
+  await new Promise(r => child_process.exec(`fileTime.exe "PGM${timestamp}.flac" ${Math.floor(
+    timestamp / 1000
+  )} ${Math.floor((timestamp + duration) / 1000)}`, () => r()))
+
 };
 // ffmpeg.stdout.on("data", (data) => {
 //   console.log(`stdout: ${data}`);

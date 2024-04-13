@@ -6,6 +6,7 @@ import { Gesture } from "../../code-snippet/browser/Gesture";
 const { searchParams, port } = new URL(location.href);
 /** 是否是生产环境 */
 const isPro = !port;
+const isTakePhoto = !!searchParams.get("takePhoto");
 const uid = searchParams.get("uid") || Math.random().toString(16).substr(-6);
 let playFlacAudio: PlayFlacAudio;
 const mediaStreamConstraintsAudio: MediaTrackConstraints = {
@@ -20,7 +21,9 @@ const mediaStreamConstraints: MediaStreamConstraints = {
   audio: mediaStreamConstraintsAudio,
   video: !(searchParams.get("disableCamera") || isPro) && { facingMode: "user", height: 720, width: 1280 },
 };
-
+if (isTakePhoto) {
+  mediaStreamConstraints.video = { facingMode: "environment", height: 1080, width: 1920 };
+}
 const ws = new URL(location.href);
 if (isPro) {
   ws.hostname = "sz.hejianpeng.cn";
@@ -282,7 +285,17 @@ const videoWebSocketUrl = String(ws);
       const context = offscreen.getContext("2d", { willReadFrequently: true });
       if (!context) return;
       while (videoTrack.readyState === "live") {
-        await new Promise(r => setTimeout(r, 10000));
+        await new Promise<void>(r => {
+          if (isTakePhoto) {
+            video.onclick = () => {
+              scriptDOM.innerHTML = "拍照成功";
+              r();
+            };
+          } else {
+            setTimeout(r, 10000);
+          }
+        });
+
         context.drawImage(video, 0, 0, width, height);
 
         const webp = await new Response(
@@ -299,13 +312,18 @@ const videoWebSocketUrl = String(ws);
       }
     });
   })();
-  document.getElementById("phoneCall")?.addEventListener("click", async function () {
-    state = 5;
-    playFlacAudio = new PlayFlacAudio();
-    this.style.display = "none";
-    duringDOM.style.display = "";
-    phoneTextDOM.innerHTML = "正在拨号";
-    wakeLock();
+  // @ts-ignore
+  document.getElementById("phoneCall").addEventListener("click", function () {
+    try {
+      state = 5;
+      playFlacAudio = new PlayFlacAudio();
+      this.style.display = "none";
+      duringDOM.style.display = "";
+      phoneTextDOM.innerHTML = "正在拨号";
+      wakeLock();
+    } catch (e) {
+      alert(String(e));
+    }
   });
 
   const wakeLock = (e?: any) => {
