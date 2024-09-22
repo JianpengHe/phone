@@ -7,6 +7,15 @@ const { searchParams, port } = new URL(location.href);
 /** 是否是生产环境 */
 const isPro = !port;
 const isTakePhoto = !!searchParams.get("takePhoto");
+const bell = document.createElement("audio");
+bell.src = "https://tool.hejianpeng.cn/music/bell_1.mp3";
+bell.loop = true;
+bell.volume = 0.5;
+document.body.appendChild(bell);
+// window.addEventListener("click", () => {
+//   bell.paused && setTimeout(() => bell.paused && bell.play(), 1000);
+// });
+
 const uid = searchParams.get("uid") || Math.random().toString(16).substr(-6);
 let playFlacAudio: PlayFlacAudio;
 const mediaStreamConstraintsAudio: MediaTrackConstraints = {
@@ -105,6 +114,7 @@ const videoWebSocketUrl = String(ws);
     video.style.display = video.style.display === "block" ? "none" : "block";
   };
   phoneCancelDOM.onclick = () => {
+    bell.muted = true;
     duringDOM.style.display = "none";
     phoneTextDOM.innerHTML = "呼叫结束";
     state = 9;
@@ -116,8 +126,33 @@ const videoWebSocketUrl = String(ws);
   /** 0刚打开，1Flac加载成功，2已发送第一帧，5点击了发起通话，6正在通话，9点击结束通话 */
   let state = 0;
   let phoneTimer = 0;
+
+  /** 铃声 */
+  let bellTimer = 0;
+  navigator.platform.toLowerCase() !== "win32" &&
+    document.addEventListener("visibilitychange", () => {
+      if (state !== 6) return;
+      bellTimer && clearTimeout(bellTimer);
+      // 用户息屏、或者切到后台运行 （离开页面）
+      if (document?.visibilityState === "hidden" || document.hidden) {
+        console.log("hidden");
+        bellTimer = Number(
+          setTimeout(() => {
+            bellTimer = 0;
+            bell.currentTime = 0;
+            bell.muted = false;
+          }, (60 + Math.random() * 20) * 1000)
+        );
+      }
+      // 用户打开或回到页面
+      if (document.visibilityState === "visible" || document.hidden === false) {
+        bell.muted = true;
+      }
+    });
+
   //
   const start = () => {
+    bell.muted = true;
     state = 6;
     phoneTextDOM.innerHTML = "";
     phoneTimerDOM.innerHTML = "00:00";
@@ -314,6 +349,7 @@ const videoWebSocketUrl = String(ws);
   })();
   // @ts-ignore
   document.getElementById("phoneCall").addEventListener("click", function () {
+    bell.paused && setTimeout(() => bell.paused && bell.play(), 1000);
     try {
       state = 5;
       playFlacAudio = new PlayFlacAudio();
