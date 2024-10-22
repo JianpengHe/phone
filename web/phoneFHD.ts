@@ -34,17 +34,14 @@ if (isTakePhoto) {
   mediaStreamConstraints.video = { facingMode: "environment", height: 1080, width: 1920 };
 }
 const ws = new URL(location.href);
-if (isPro) {
-  ws.hostname = "sz.hejianpeng.cn";
-  ws.port = "48452";
-}
 ws.hash = "";
 ws.protocol = ws.protocol.replace("http", "ws");
 ws.search = "?uid=" + uid;
 ws.pathname = "/WebSocket";
 const phoneWebSocketUrl = String(ws);
-ws.pathname = "/WebSocketVideo";
-const videoWebSocketUrl = String(ws);
+let webSocket: ReliableWebSocket | undefined = undefined;
+// ws.pathname = "/WebSocketVideo";
+// const videoWebSocketUrl = String(ws);
 
 (async () => {
   const phoneTimerDOM = document.getElementById("phoneTimer");
@@ -172,8 +169,9 @@ const videoWebSocketUrl = String(ws);
   Flac.onready = async () => {
     let time = performance.now();
     let time2 = performance.now();
-    const webSocket = new ReliableWebSocket(phoneWebSocketUrl);
+    if (!webSocket) webSocket = new ReliableWebSocket(phoneWebSocketUrl);
     webSocket.addEventListener("message", ({ data }) => {
+      //TODO data
       switch (state) {
         case 6: //(isPc || !document.hidden) &&
           data.arrayBuffer().then(audioData => playFlacAudio?.sendFlacData(audioData));
@@ -191,7 +189,7 @@ const videoWebSocketUrl = String(ws);
 
     new GetUserMediaAudioToFlac(mediaStream).onFlacData((buf, currentFrame) => {
       //  console.log(currentFrame)
-      webSocket.send(buf);
+      webSocket?.send(buf);
       if (state === 1) {
         state = 2;
         return;
@@ -220,7 +218,7 @@ const videoWebSocketUrl = String(ws);
       video.srcObject = mediaStream;
       video.play();
     }
-    const webSocket = new ReliableWebSocket(videoWebSocketUrl);
+    if (!webSocket) webSocket = new ReliableWebSocket(phoneWebSocketUrl);
     const canvas = document.createElement("canvas");
     const gesture = new Gesture();
     canvas.style.transformOrigin = `0px 0px`;
@@ -243,7 +241,7 @@ const videoWebSocketUrl = String(ws);
     if (!context || !screenShare) return;
     screenShare.onclick = () => {
       if (!isPc) return;
-      webSocket.close();
+      webSocket?.close();
       window.open("ScreenShare.html", "ScreenShare", "height=600,width=600");
     };
     const queue: HTMLImageElement[] = [];
@@ -332,7 +330,6 @@ const videoWebSocketUrl = String(ws);
         });
 
         context.drawImage(video, 0, 0, width, height);
-
         const webp = await new Response(
           (
             await offscreen.convertToBlob({
@@ -343,7 +340,11 @@ const videoWebSocketUrl = String(ws);
             .stream()
             .pipeThrough(new CompressionStream("gzip"))
         ).arrayBuffer();
-        webSocket.send(webp);
+        if (isTakePhoto) {
+          webSocket?.send(webp);
+        } else {
+          fetch(new Date().getTime() + ".gzip?uid=" + uid, { method: "put", body: webp });
+        }
       }
     });
   })();

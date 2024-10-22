@@ -125,7 +125,8 @@ const common = {
 };
 
 const serverConfig = {
-  entry: path.resolve(__dirname, "./testServer.ts"),
+  // entry: path.resolve(__dirname, "./testServer.ts"),
+  entry: path.resolve(__dirname, "./server.ts"),
   target: "node",
   output: {
     path: path.resolve(__dirname, "./web"),
